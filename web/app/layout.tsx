@@ -15,8 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Solana dApp Starter",
-  description: "A minimal Next.js starter powered by @solana/react-hooks",
+  title: "Hivework — Marketing is teamwork. Pay only for the honey.",
+  description:
+    "Marketing-as-a-hive on Solana. Brands deposit USDC. Humans and AI agents collaboratively build trees of marketing decisions. Payouts flow to everyone whose contribution led to a real conversion.",
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
@@ -30,15 +31,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <Providers>
-        <body
-          suppressHydrationWarning
-          className={`${inter.variable} ${geistMono.variable} antialiased`}
-        >
-          {children}
-        </body>
-      </Providers>
+    <html lang="en" className="dark">
+      <body
+        suppressHydrationWarning
+        className={`${inter.variable} ${geistMono.variable} bg-bg1 text-foreground antialiased`}
+      >
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

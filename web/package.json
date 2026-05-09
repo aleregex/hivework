@@ -1,5 +1,5 @@
 {
-  "name": "hivework",
+  "name": "hivework-web",
   "scripts": {
     "build": "next build",
     "ci": "npm run build && npm run lint && npm run format:check",
@@ -9,24 +9,45 @@
     "lint": "eslint",
     "start": "next start"
   },
-  "description": "Next.js, Tailwind, @solana/react-hooks",
+  "description": "Hivework — Marketing as a hive on Solana. Frontend (Group C).",
   "keywords": [
-    "kit",
     "hivework",
-    "react",
-    "solana-kit",
+    "solana",
+    "marketing",
+    "next",
     "tailwind",
-    "typescript"
+    "anchor"
   ],
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "dependencies": {
-    "@solana/client": "^1.2.0",
-    "@solana/react-hooks": "^1.1.5",
+    "@coral-xyz/anchor": "^0.30.1",
+    "@hookform/resolvers": "^3.10.0",
+    "@radix-ui/react-dialog": "^1.1.6",
+    "@radix-ui/react-label": "^2.1.2",
+    "@radix-ui/react-slot": "^1.1.2",
+    "@radix-ui/react-tabs": "^1.1.3",
+    "@solana/wallet-adapter-base": "^0.9.23",
+    "@solana/wallet-adapter-react": "^0.15.35",
+    "@solana/wallet-adapter-react-ui": "^0.9.35",
+    "@solana/wallet-adapter-wallets": "^0.19.32",
+    "@solana/web3.js": "^1.98.0",
+    "@tanstack/react-query": "^5.66.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^11.18.2",
+    "lucide-react": "^0.475.0",
     "next": "16.1.7",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "ws": "^8.18.3"
+    "react-force-graph-2d": "^1.27.0",
+    "react-hook-form": "^7.54.2",
+    "recharts": "^2.15.1",
+    "sonner": "^2.0.0",
+    "tailwind-merge": "^3.0.2",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.24.2",
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -6,20 +6,23 @@
 
 ## Lo que hay que entregar
 
-### 1. Scaffold inicial del proyecto
+### 1. Scaffold inicial del proyecto ✅ (ya hecho)
 
-En los primeros 30 minutos, levantas el scaffold con:
+El scaffold de Next.js ya está creado en `web/` y el repo es monorepo plano:
 
-```bash
-npm create solana-dapp@latest
+```
+hivework/
+├── web/         ← Frontend Next.js (Grupo C)
+├── api/         ← Backend + MCP server (Grupo B)
+└── contracts/   ← Smart contract Anchor (Grupo A)
 ```
 
-Compartes el repo con los otros dos grupos. Ellos pueden trabajar en sub-carpetas del monorepo o repos separados según prefieran, pero el scaffold les da:
+El scaffold viene de `create-solana-dapp` con Next 16 + React 19 + Tailwind 4. Migrado a stack clásico para que integre directo con el IDL de Anchor del Grupo A:
 
-- Frontend Next.js base ya configurado
-- Wallet adapter ya integrado
+- `@solana/wallet-adapter-react` + `@solana/wallet-adapter-react-ui` + `@solana/wallet-adapter-wallets` (Phantom, Solflare, Backpack)
+- `@solana/web3.js`
+- `@coral-xyz/anchor` (consume el IDL nativo)
 - Conexión a devnet ya seteada
-- Estructura limpia para empezar
 
 ### 2. Frontend completo
 
@@ -176,17 +179,18 @@ Esto es el centro del producto y del demo. Vale la pena gastar tiempo extra haci
 
 ---
 
-## Stack y herramientas
+## Stack y herramientas (decidido)
 
-- **Framework:** Next.js 14+ con App Router (viene del scaffold)
-- **Estilos:** Tailwind + shadcn/ui (no perder tiempo en CSS custom)
-- **Wallet:** Solana Wallet Adapter (viene del scaffold)
-- **Visualización del árbol:** D3.js, react-force-graph, o vis.js. Recomendación: react-force-graph si nunca trabajaste con D3, es más fácil.
-- **Animaciones:** Framer Motion para transiciones suaves
-- **Charts (dashboard de marca):** Recharts
-- **Estado:** TanStack Query para server state, Zustand para client state si hace falta
-- **Notificaciones:** Sonner o react-hot-toast
-- **Deploy:** Vercel (deploy en 1 click desde el repo)
+- **Framework:** Next.js 16 con App Router (viene del scaffold, React 19)
+- **Estilos:** Tailwind 4 + shadcn/ui (no perder tiempo en CSS custom)
+- **Wallet:** `@solana/wallet-adapter-react` + UI + wallets (Phantom, Solflare, Backpack)
+- **Solana SDK:** `@solana/web3.js` + `@coral-xyz/anchor` (consume IDL del Grupo A)
+- **Visualización del árbol:** `react-force-graph-2d` (decidido — más rápido que D3 puro)
+- **Animaciones:** `framer-motion` para transiciones y la cascada USDC
+- **Charts (dashboard de marca):** `recharts`
+- **Estado:** `@tanstack/react-query` para server state, `zustand` para client state si hace falta
+- **Notificaciones:** `sonner`
+- **Deploy:** Vercel (1 click desde GitHub, deploy temprano en hora 0-1)
 
 ---
 

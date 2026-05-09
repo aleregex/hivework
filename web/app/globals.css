@@ -1,46 +1,57 @@
 @import "tailwindcss";
 
+/*
+ * Hivework — palette
+ *  - honey:   #F5C518   primary, the bee yellow
+ *  - hive:    #0A0A0A   background, deep black
+ *  - sting:   #FF6B35   accent orange (alerts, conversions, money flowing in)
+ *  - comb:    #1A1A1A   surface (cards)
+ *  - wax:     #2A2A2A   borders / dividers
+ *  - pollen:  #FFE066   honey on hover / glow
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0); /* deep neutral */
-  --border-strong: oklch(0.839 0.0187 78.23);
-  --border-low: oklch(0.927 0.0122 96.43);
-  --accent: oklch(0 0 0);
-  --muted: #3a3a3a; /* darker for better light-mode contrast */
-  --cream: oklch(0.9553 0.0029 84.56);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
+  --hive: #0a0a0a;
+  --hive-2: #121212;
+  --comb: #1a1a1a;
+  --wax: #2a2a2a;
+  --honey: #f5c518;
+  --pollen: #ffe066;
+  --sting: #ff6b35;
+  --foreground: #fafafa;
+  --muted: #a1a1aa;
+  --muted-foreground: #71717a;
+  --border: #2a2a2a;
+  --border-strong: #3a3a3a;
+  --card: #141414;
+  --card-foreground: #fafafa;
+  --destructive: #ef4444;
   --radius: 0.625rem;
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --border-strong: oklch(1 0 0 / 0.12);
-    --border-low: oklch(1 0 0 / 0.08);
-    --accent: oklch(0.922 0 0);
-    --muted: oklch(0.75 0.01 260); /* brighten muted text in dark mode */
-    --cream: oklch(0.22 0.009 70.82);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-  }
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-bg1: var(--background);
+  --color-background: var(--hive);
+  --color-bg1: var(--hive);
+  --color-bg2: var(--hive-2);
   --color-foreground: var(--foreground);
-  --color-cream: var(--cream);
-  --color-border: var(--border-strong);
-  --color-border-strong: var(--border-strong);
-  --color-border-low: var(--border-low);
-  --color-primary: var(--accent);
-  --color-muted: var(--muted);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-comb: var(--comb);
+  --color-wax: var(--wax);
+  --color-honey: var(--honey);
+  --color-pollen: var(--pollen);
+  --color-sting: var(--sting);
+  --color-primary: var(--honey);
+  --color-primary-foreground: var(--hive);
+  --color-accent: var(--sting);
+  --color-accent-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-destructive: var(--destructive);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --radius-md: calc(var(--radius) - 2px);
@@ -53,9 +64,35 @@
     @apply border-border outline-transparent;
   }
 
+  html,
   body {
     @apply bg-bg1 text-foreground antialiased;
     font-family: var(--font-sans);
-    color-scheme: light dark;
+    color-scheme: dark;
   }
+
+  ::selection {
+    background: var(--honey);
+    color: var(--hive);
+  }
+}
+
+/* Honeycomb subtle background pattern, used on hero / landing sections */
+.bg-honeycomb {
+  background-color: var(--hive);
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(245, 197, 24, 0.05) 0%, transparent 30%),
+    radial-gradient(circle at 75% 75%, rgba(255, 107, 53, 0.04) 0%, transparent 30%);
+}
+
+/* Glow used on active nodes and the cascade animation */
+.glow-honey {
+  box-shadow:
+    0 0 0 1px rgba(245, 197, 24, 0.4),
+    0 0 24px -4px rgba(245, 197, 24, 0.6);
+}
+.glow-sting {
+  box-shadow:
+    0 0 0 1px rgba(255, 107, 53, 0.4),
+    0 0 24px -4px rgba(255, 107, 53, 0.6);
 }

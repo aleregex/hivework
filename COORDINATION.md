@@ -7,7 +7,7 @@
 ## Comunicación
 
 - **Canal principal:** [LINK al Telegram/Discord — completar]
-- **Repo:** [LINK a GitHub — completar]
+- **Repo:** https://github.com/aleregex/hivework
 - **Branches:** trabajamos en `main`. Si hay riesgo, ramas tipo `groupA/feature-x` y merge frecuente.
 - **Norma:** cada commit con mensaje claro. Cada hora, push del trabajo aunque esté incompleto.
 
@@ -106,22 +106,22 @@ Estas son decisiones que afectan a múltiples grupos. Cuando se confirmen, marca
 
 ## Schedule del equipo
 
-### Bloques de trabajo
+### Bloques de trabajo (10 horas)
 
-- **Bloque 1 (horas 0-4):** Setup paralelo. Cada grupo tiene scaffold básico funcionando.
-- **Bloque 2 (horas 4-8):** Core development. Grupo A entrega IDL al final del bloque.
-- **Bloque 3 (horas 8-10):** Integración E2E. Demo completo funcionando aunque feo.
-- **Bloque 4 (horas 10-11):** Polish, animación, contenido pre-poblado.
-- **Bloque 5 (horas 11-12):** Ensayos de demo, grabación de backup, submission.
+- **Bloque 1 (horas 0-2):** Setup paralelo. Cada grupo tiene scaffold básico funcionando. Grupo C deploya shell en Vercel.
+- **Bloque 2 (horas 2-4):** Core development. Grupo A entrega IDL provisional al final. Grupo B entrega APIs mockeadas. Grupo C tiene landing + skeleton de vistas con mocks.
+- **Bloque 3 (horas 4-6):** Integración E2E. Demo completo conectado punta a punta aunque feo.
+- **Bloque 4 (horas 6-8):** Polish, animación de cascada USDC, contenido pre-poblado en el árbol.
+- **Bloque 5 (horas 8-9):** Pitch deck + script + grabación de video backup.
+- **Bloque 6 (horas 9-10):** Ensayos finales del demo + submissions a Dev3pack y Colosseum.
 
 ### Sync points obligatorios
 
-- **Hora 2:** check rápido de los 3 grupos (10 min) - "¿alguien está bloqueado?"
-- **Hora 4:** Grupo A entrega IDL provisional + Grupo B entrega ejemplos de respuestas API mockeadas
-- **Hora 6:** demo dry-run #1 con datos hardcoded
-- **Hora 8:** integración real (no más mocks) - todo conectado punta a punta
-- **Hora 10:** demo dry-run #2 con flujo completo
-- **Hora 11:** demo dry-run #3 final + grabación de video backup
+- **Hora 2:** check rápido de los 3 grupos (10 min) — "¿alguien está bloqueado?"
+- **Hora 4:** Grupo A entrega IDL provisional + Grupo B entrega APIs mockeadas. Demo dry-run #1 con datos hardcoded.
+- **Hora 6:** integración real (no más mocks) — todo conectado punta a punta. Demo dry-run #2.
+- **Hora 8:** animación de cascada lista. Demo dry-run #3 con flujo completo.
+- **Hora 9:** grabación de video backup + ensayo final del pitch.
 
 ### Ensayos del demo
 

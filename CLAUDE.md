@@ -10,7 +10,7 @@
 
 ## Critical context for any AI assistant working on this project
 
-This is a **Solana hackathon project** with **12 hours total** and **3 developers**. The scope is aggressive and must be ruthlessly prioritized.
+This is a **Solana hackathon project** with **10 hours total** and **3 developers**. The scope is aggressive and must be ruthlessly prioritized.
 
 We are NOT building a perfect product. We are building a **demo that wins**. That means:
 

@@ -61,7 +61,7 @@ Antes de hacer nada, lee estos archivos en orden:
 
 Mi stack: Anchor framework + Rust. El scaffold ya está levantado con create-solana-dapp.
 
-Mi prioridad #1 es definir las structs y PDAs del programa Anchor en programs/hivework/src/lib.rs:
+Mi prioridad #1 es definir las structs y PDAs del programa Anchor en contracts/programs/hivework/src/lib.rs:
 - Campaign (root del árbol)
 - Node (con parent, level, stake, fork_count, conversions_count)
 - Leaf (con path al árbol, ref_code, stake)
@@ -88,7 +88,7 @@ Antes de hacer nada, lee estos archivos en orden:
 2. docs/grupo_b.md (mis tareas específicas)
 3. COORDINATION.md (wallets, decisiones compartidas)
 
-Mi stack: [completar — FastAPI Python o Express Node, lo que prefieras]. Voy a crear una carpeta apps/api/ dentro del monorepo o un repo separado.
+Mi stack: [completar — FastAPI Python o Express Node, lo que prefieras]. Voy a crear una carpeta api/ en la raíz del monorepo.
 
 Mi prioridad #1 es:
 1. Definir el modelo de datos off-chain (campaigns_metadata, nodes_metadata, leaves_metadata, clicks, pending_conversions)
@@ -126,7 +126,7 @@ Mi prioridad #1 es la landing page con:
 - Sección con campañas activas (placeholder por ahora)
 
 Antes de codear:
-1. Lista los archivos que vas a crear o modificar en apps/web/
+1. Lista los archivos que vas a crear o modificar en web/
 2. Dame un mockup ASCII rápido del layout de la landing
 3. Confirma que vas a usar shadcn/ui para componentes base
 4. Sugiere qué animaciones agregar para que se sienta vivo
@@ -193,7 +193,6 @@ Después de levantar el scaffold y agregar los MDs, esto es lo que TODOS deberí
 hivework/
 ├── CLAUDE.md                    ← Lee primero
 ├── COORDINATION.md              ← Wallets y decisiones compartidas
-├── README.md                    ← README público (Grupo C lo pulirá al final)
 ├── INSTRUCCIONES.md             ← Este archivo
 ├── docs/
 │   ├── proyecto.md              ← Idea completa del producto
@@ -201,12 +200,12 @@ hivework/
 │   ├── grupo_a.md               ← Tareas detalladas del Grupo A
 │   ├── grupo_b.md               ← Tareas detalladas del Grupo B
 │   └── grupo_c.md               ← Tareas detalladas del Grupo C
-├── programs/
-│   └── hivework/                ← Smart contract (Grupo A)
-└── apps/
-    ├── web/                     ← Frontend (Grupo C)
-    └── api/                     ← Backend (Grupo B, opcional aquí)
+├── web/                         ← Frontend Next.js (Grupo C)
+├── api/                         ← Backend + MCP server (Grupo B)
+└── contracts/                   ← Smart contract Anchor (Grupo A)
 ```
+
+El README público lo pule el Grupo C al final, antes de la submission.
 
 Si no ves alguno de estos archivos, avisa en el canal.
 
