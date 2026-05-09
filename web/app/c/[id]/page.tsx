@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, GitFork, Network, Plus, Sparkles, Zap } from "lucide-react";
+import { ArrowLeft, GitFork, Plus, Sparkles, Zap } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { TreeView } from "@/components/tree/tree-view";
 import { MOCK_CAMPAIGNS } from "@/lib/mocks/campaigns";
 import { MOCK_TREE } from "@/lib/mocks/tree";
 
@@ -109,7 +109,7 @@ export default async function CampaignDetailPage({ params }: PageProps) {
         </p>
       </div>
 
-      {/* Tree placeholder — real viz lands in Task #5 */}
+      {/* Interactive tree */}
       <div className="mt-8">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold tracking-tight">
@@ -120,65 +120,14 @@ export default async function CampaignDetailPage({ params }: PageProps) {
             {totalNodes + totalLeaves} elements
           </Badge>
         </div>
+        <p className="mt-1 text-xs text-muted">
+          Click any node to inspect it. The{" "}
+          <span className="text-sting">orange particles</span> on the links show
+          where conversions are flowing in real time.
+        </p>
 
-        <Card className="mt-3">
-          <CardContent className="flex h-[460px] items-center justify-center text-center">
-            <div className="flex max-w-md flex-col items-center gap-3">
-              <Network className="h-10 w-10 text-honey" />
-              <p className="text-sm font-medium">Interactive tree coming up</p>
-              <p className="text-xs text-muted">
-                react-force-graph visualization with realtime updates lands in
-                Task #5. For now you can use the level breakdown below or jump
-                straight to{" "}
-                <Link
-                  href={`/c/${campaign.id}/contribute`}
-                  className="text-honey underline-offset-2 hover:underline"
-                >
-                  contribute
-                </Link>
-                .
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Level breakdown — quick summary while the viz isn't built */}
-        <div className="mt-6 grid gap-4 md:grid-cols-4">
-          {LEVEL_LABELS.map((level) => {
-            const nodesAtLevel = MOCK_TREE.filter((n) => n.level === level.id);
-            return (
-              <div
-                key={level.id}
-                className="rounded-lg border border-wax bg-comb p-4"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-wider text-muted">
-                    Level {level.id} · {level.label}
-                  </span>
-                  <span className={`font-mono text-xs ${level.color}`}>
-                    {nodesAtLevel.length}
-                  </span>
-                </div>
-                <ul className="mt-3 space-y-1.5">
-                  {nodesAtLevel.slice(0, 3).map((n) => (
-                    <li
-                      key={n.id}
-                      className="truncate text-xs text-foreground"
-                      title={n.title}
-                    >
-                      <span
-                        className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${level.color.replace("text-", "bg-")}`}
-                      />
-                      {n.title}
-                    </li>
-                  ))}
-                  {nodesAtLevel.length === 0 && (
-                    <li className="text-xs text-muted">empty — be the first</li>
-                  )}
-                </ul>
-              </div>
-            );
-          })}
+        <div className="mt-4">
+          <TreeView initialNodes={MOCK_TREE} />
         </div>
       </div>
     </AppShell>
@@ -211,10 +160,3 @@ function Stat({
     </div>
   );
 }
-
-const LEVEL_LABELS = [
-  { id: 1 as const, label: "Hooks", color: "text-pollen" },
-  { id: 2 as const, label: "Audio", color: "text-honey" },
-  { id: 3 as const, label: "Visual", color: "text-sting" },
-  { id: 4 as const, label: "Leaves", color: "text-foreground" },
-];

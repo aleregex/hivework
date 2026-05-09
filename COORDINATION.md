@@ -61,7 +61,7 @@ Quien fondea: el Grupo A vía `solana airdrop` y el faucet de USDC mock del scaf
 | RPC de Solana | `https://api.devnet.solana.com` | (público) |
 | Backend API | `[completar cuando deploy]` | Grupo B |
 | MCP server | `[completar cuando deploy]` | Grupo B |
-| Frontend deploy | `[completar cuando deploy]` | Grupo C |
+| Frontend deploy | `https://hivework-two.vercel.app` | Grupo C |
 | Short-link domain | `[completar — ej: hivework.link/abc]` | Grupo B |
 
 ### Variables de entorno críticas

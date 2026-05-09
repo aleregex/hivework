@@ -236,3 +236,21 @@ export function getPath(leafId: string): TreeNode[] {
   }
   return path;
 }
+
+export type GraphData = {
+  nodes: TreeNode[];
+  links: { source: string; target: string }[];
+};
+
+/**
+ * Adapt the flat node list to the shape react-force-graph expects.
+ * source/target use node ids; the lib resolves them to node refs internally.
+ */
+export function treeToGraph(nodes: TreeNode[] = MOCK_TREE): GraphData {
+  return {
+    nodes: nodes.map((n) => ({ ...n })),
+    links: nodes
+      .filter((n) => n.parentId !== null)
+      .map((n) => ({ source: n.parentId as string, target: n.id })),
+  };
+}
