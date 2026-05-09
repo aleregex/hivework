@@ -1,0 +1,209 @@
+# Coordinación del equipo Hivework
+
+> Documento vivo de coordinación. Cada grupo lo actualiza con la info que su trabajo necesita exponer al resto. Mantenerlo actualizado es la única forma de no chocarnos en 12 horas.
+
+---
+
+## Comunicación
+
+- **Canal principal:** [LINK al Telegram/Discord — completar]
+- **Repo:** [LINK a GitHub — completar]
+- **Branches:** trabajamos en `main`. Si hay riesgo, ramas tipo `groupA/feature-x` y merge frecuente.
+- **Norma:** cada commit con mensaje claro. Cada hora, push del trabajo aunque esté incompleto.
+
+---
+
+## Wallets de prueba en devnet
+
+Cada grupo declara sus wallets aquí. Quien necesite SOL/USDC pre-fundeado se lo pide al Grupo A.
+
+### Wallets del Grupo A (smart contract + oracle)
+
+| Rol | Pubkey | Notas |
+|-----|--------|-------|
+| Deploy authority | `[completar]` | Quien deploy el programa |
+| Oracle keypair | `[completar]` | Pubkey autorizada en el contrato para firmar conversiones |
+
+### Wallets del Grupo B (backend + agente AI)
+
+| Rol | Pubkey | Notas |
+|-----|--------|-------|
+| Agente AI principal | `[completar]` | Wallet que el agente usa para crear nodos durante el demo |
+| Agente AI secundario (opcional) | `[completar]` | Por si quieren mostrar varios agentes |
+
+### Wallets del Grupo C (frontend + demo)
+
+| Rol | Pubkey | Notas |
+|-----|--------|-------|
+| Marca demo | `[completar]` | Wallet que crea la campaña en el demo |
+| Creator humano 1 | `[completar]` | Miembro del equipo que crea nodos durante demo |
+| Creator humano 2 | `[completar]` | Miembro del equipo que publica hojas |
+| Creator humano 3 | `[completar]` | Miembro del equipo que "compra" durante demo |
+
+### Pre-fundeo necesario
+
+Antes del demo, todas las wallets deben tener:
+
+- Mínimo 5 SOL en devnet (para gas + staking)
+- Las wallets de creators: 2-3 SOL para staking de nodos
+- La wallet de la marca: equivalente a 100 USDC en devnet (mockUSDC del scaffold sirve)
+
+Quien fondea: el Grupo A vía `solana airdrop` y el faucet de USDC mock del scaffold.
+
+---
+
+## Configuración compartida
+
+### URLs y endpoints
+
+| Servicio | URL devnet/staging | Owner |
+|----------|-------------------|-------|
+| RPC de Solana | `https://api.devnet.solana.com` | (público) |
+| Backend API | `[completar cuando deploy]` | Grupo B |
+| MCP server | `[completar cuando deploy]` | Grupo B |
+| Frontend deploy | `[completar cuando deploy]` | Grupo C |
+| Short-link domain | `[completar — ej: hivework.link/abc]` | Grupo B |
+
+### Variables de entorno críticas
+
+Cada grupo debe documentar las suyas en su sub-proyecto. Las que TODOS deben conocer:
+
+- `NEXT_PUBLIC_PROGRAM_ID` — pubkey del programa Anchor (lo da Grupo A al deploy)
+- `NEXT_PUBLIC_API_URL` — URL del backend (lo da Grupo B al deploy)
+- `NEXT_PUBLIC_RPC_ENDPOINT` — RPC de Solana
+- `ORACLE_PRIVATE_KEY` — solo Grupo A, en su servicio de oracle
+
+### LLM para el agente AI
+
+Decisión: `[completar — Claude API / GPT-4 / Gemini / Llama local]`
+
+Esto afecta:
+- API key necesaria (en .env del backend)
+- Costo del demo (Claude/GPT cuestan por token)
+- Velocidad de respuesta (Claude API es más rápido para MCP)
+
+### Decisión sobre custodial vs no-custodial para agentes
+
+`[completar — recomendación: no-custodial, cada agente con wallet propia]`
+
+---
+
+## Decisiones técnicas alineadas
+
+Estas son decisiones que afectan a múltiples grupos. Cuando se confirmen, marcarlas con ✅:
+
+- [ ] Estructura del path genealógico: `array de 3 pubkeys` o `array de 3 PDAs derivados`
+- [ ] Formato del ref_code: `8 chars alfanuméricos` (default sugerido)
+- [ ] Hash de metadata: `SHA-256 del JSON canónico`
+- [ ] Platform fee: `5% del valor de cada conversión`
+- [ ] Pesos default de la fórmula: `α=0.4, β=0.4, γ=0.2`
+- [ ] Levels obligatorios: `[hook, audio, visual]` exactos para MVP
+- [ ] Auth frontend → backend: `wallet signature como JWT`
+- [ ] Realtime updates: `WebSocket` o `Server-Sent Events`
+- [ ] Color final del branding: `[a definir]`
+
+---
+
+## Schedule del equipo
+
+### Bloques de trabajo
+
+- **Bloque 1 (horas 0-4):** Setup paralelo. Cada grupo tiene scaffold básico funcionando.
+- **Bloque 2 (horas 4-8):** Core development. Grupo A entrega IDL al final del bloque.
+- **Bloque 3 (horas 8-10):** Integración E2E. Demo completo funcionando aunque feo.
+- **Bloque 4 (horas 10-11):** Polish, animación, contenido pre-poblado.
+- **Bloque 5 (horas 11-12):** Ensayos de demo, grabación de backup, submission.
+
+### Sync points obligatorios
+
+- **Hora 2:** check rápido de los 3 grupos (10 min) - "¿alguien está bloqueado?"
+- **Hora 4:** Grupo A entrega IDL provisional + Grupo B entrega ejemplos de respuestas API mockeadas
+- **Hora 6:** demo dry-run #1 con datos hardcoded
+- **Hora 8:** integración real (no más mocks) - todo conectado punta a punta
+- **Hora 10:** demo dry-run #2 con flujo completo
+- **Hora 11:** demo dry-run #3 final + grabación de video backup
+
+### Ensayos del demo
+
+Cada ensayo debe incluir a:
+- Persona del Grupo C presentando
+- Persona del Grupo A en máquina con Solscan abierto
+- Persona del Grupo B confirmando que el agente AI esté corriendo
+
+Al menos los 3 ensayos. Si llega a 5, mejor.
+
+---
+
+## Plan de contingencia: qué hacer si algo falla
+
+### Si el smart contract no termina a tiempo
+
+- Hardcodear los payouts finales en el frontend (calculados off-chain)
+- En el pitch decir: "el contrato ejecuta esto en mainnet, hoy mostramos el resultado"
+- Aún registrar las creaciones de nodos/hojas/conversiones reales on-chain
+- Lo único que no estaría on-chain sería la distribución final
+
+### Si el backend falla en el demo
+
+- Todos los datos de campaña, árbol y conversiones están on-chain (pueden leerse directo del RPC)
+- Pre-cargar el árbol del demo en localStorage del frontend como backup
+- Tener Solscan abierto como fuente de verdad alternativa
+
+### Si el agente AI no funciona en vivo
+
+- Tener video pre-grabado del agente operando
+- Mostrar logs y razonamiento del LLM como prueba
+- Cambiar la narrativa a "este es el flujo, hoy el agente corrió en background creando estos nodos antes del demo"
+
+### Si la conexión a internet falla
+
+- Tener video backup completo de 3 minutos del flujo end-to-end
+- Tener screenshots de cada pantalla crítica
+- Tener Solscan capturado en PDF como evidencia on-chain
+
+---
+
+## Submission targets
+
+### Dev3pack (obligatorio)
+
+- [ ] Track principal: Solana ($10K)
+- [ ] Track ElevenLabs si se integra audio del agente
+- [ ] Bonus x402 si se integran pagos a APIs vía x402
+- [ ] Track Solana Mobile si la PWA está pulida
+
+URL submission: `[completar]`
+
+### Colosseum (side track, $250K + $2M seed)
+
+- [ ] Submission separada con pitch deck extendido
+- [ ] Modelo financiero básico
+- [ ] Plan de go-to-market post-hackathon
+
+URL submission: `[completar]`
+
+---
+
+## Roles del demo final
+
+Asignación de quién hace qué durante los 3 minutos:
+
+| Rol | Persona |
+|-----|---------|
+| Presenta el pitch | `[completar — Grupo C]` |
+| Maneja la laptop principal con frontend | `[completar — Grupo C]` |
+| Maneja Solscan en pantalla auxiliar | `[completar — Grupo A]` |
+| Confirma agente AI corriendo en backend | `[completar — Grupo B]` |
+| "Compra" en vivo durante demo | `[completar — cualquiera]` |
+| "Crea nodo" en vivo durante demo | `[completar — cualquiera]` |
+| Backup person en caso de bloqueo | `[completar]` |
+
+---
+
+## Notas finales
+
+- Dormir antes del demo: al menos 1 hora la persona que presenta
+- Comer: planificado, no se olvida
+- Cargadores: cada laptop tiene el suyo, más uno extra
+- Internet: 4G de respaldo activado en al menos un celular del equipo
+- Red de stage: probar conexión al WiFi del venue 1 hora antes
