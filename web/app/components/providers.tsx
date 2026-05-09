@@ -32,13 +32,13 @@ export function Providers({ children }: PropsWithChildren) {
   // NEXT_PUBLIC_RPC_ENDPOINT lets us point at a paid RPC during the demo if devnet gets congested.
   const endpoint = useMemo(
     () => process.env.NEXT_PUBLIC_RPC_ENDPOINT ?? clusterApiUrl("devnet"),
-    [],
+    []
   );
 
   // Backpack auto-injects via the standard wallet protocol, so we only need Phantom + Solflare here.
   const wallets = useMemo(
     () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
-    [],
+    []
   );
 
   return (

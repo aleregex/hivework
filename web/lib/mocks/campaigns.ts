@@ -1,0 +1,63 @@
+// Mock data for the landing page until Group B exposes /api/campaigns.
+// Shape mirrors what we expect from the indexer so we can swap implementations later
+// by changing the data source, not the components.
+
+export type CampaignSummary = {
+  id: string;
+  brand: string;
+  brandHandle: string;
+  product: string;
+  poolUsdc: number;
+  spentUsdc: number;
+  conversions: number;
+  nodes: number;
+  leaves: number;
+  hoursLeft: number;
+  category: "consumer" | "web3" | "saas" | "social";
+  hot: boolean;
+};
+
+export const MOCK_CAMPAIGNS: CampaignSummary[] = [
+  {
+    id: "cmp_chasqui_coffee",
+    brand: "Chasqui Coffee",
+    brandHandle: "chasqui",
+    product: "Single-origin Yungas espresso · 250g",
+    poolUsdc: 500,
+    spentUsdc: 187,
+    conversions: 41,
+    nodes: 23,
+    leaves: 12,
+    hoursLeft: 142,
+    category: "consumer",
+    hot: true,
+  },
+  {
+    id: "cmp_andean_token",
+    brand: "Andean DAO",
+    brandHandle: "andean",
+    product: "Genesis mint · ANDN governance token",
+    poolUsdc: 5000,
+    spentUsdc: 2840,
+    conversions: 318,
+    nodes: 67,
+    leaves: 34,
+    hoursLeft: 64,
+    category: "web3",
+    hot: true,
+  },
+  {
+    id: "cmp_hablalo_app",
+    brand: "Háblalo",
+    brandHandle: "hablalo",
+    product: "Premium subscription · 12 months",
+    poolUsdc: 1200,
+    spentUsdc: 410,
+    conversions: 87,
+    nodes: 31,
+    leaves: 18,
+    hoursLeft: 218,
+    category: "saas",
+    hot: false,
+  },
+];
