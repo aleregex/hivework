@@ -52,3 +52,40 @@ test("POST /demo/convert rejects unknown ref_codes with 404", async () => {
   const body = res.json() as { error: string };
   assert.equal(body.error, "ref_code_not_found");
 });
+
+test("GET /leaves/by-ref/:refCode returns 404 for unknown ref_code", async () => {
+  const res = await app.inject({
+    method: "GET",
+    url: "/leaves/by-ref/zzzzzzzz",
+  });
+  assert.equal(res.statusCode, 404);
+  const body = res.json() as { error: string };
+  assert.equal(body.error, "ref_code_not_found");
+});
+
+test("GET /wallets/:address/portfolio returns extended shape with pending payouts", async () => {
+  // Random base58 pubkey that will have no contributions — exercises the empty path.
+  const res = await app.inject({
+    method: "GET",
+    url: "/wallets/EMwSrLzbFfU5PvcrnP1jkf2QJdeRJvEXoghTVpnM3Va4/portfolio",
+  });
+  assert.equal(res.statusCode, 200);
+  const body = res.json() as {
+    wallet: string;
+    nodes: unknown[];
+    leaves: unknown[];
+    stakedSol: string;
+    pendingPayoutsUsdc: string;
+    pendingByCampaign: unknown[];
+    claimHistory: unknown[];
+    lifetimeClaimedUsdc: string;
+  };
+  assert.ok(typeof body.wallet === "string");
+  assert.ok(Array.isArray(body.nodes));
+  assert.ok(Array.isArray(body.leaves));
+  assert.ok(Array.isArray(body.pendingByCampaign));
+  assert.ok(Array.isArray(body.claimHistory));
+  assert.equal(typeof body.stakedSol, "string");
+  assert.equal(typeof body.pendingPayoutsUsdc, "string");
+  assert.equal(typeof body.lifetimeClaimedUsdc, "string");
+});

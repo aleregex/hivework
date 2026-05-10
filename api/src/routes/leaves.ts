@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
+import { z } from "zod";
 import type { ZodTypeProvider } from "../plugins/zod.js";
 import {
   CreateLeafDraftBody,
@@ -7,8 +8,14 @@ import {
   LeafSchema,
   mapLeaf,
 } from "../schemas/leaf.js";
+import { NodeSchema, mapNode } from "../schemas/node.js";
+import {
+  CampaignSummarySchema,
+  mapCampaign,
+  type CampaignWithCounts,
+} from "../schemas/campaign.js";
 import { ErrorBodySchema } from "../schemas/shared.js";
-import { consumeRefCode, reserveRefCode } from "../refcode.js";
+import { consumeRefCode, REF_CODE_REGEX, reserveRefCode } from "../refcode.js";
 
 const leavesRoutes: FastifyPluginAsync = async (app) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -138,6 +145,64 @@ const leavesRoutes: FastifyPluginAsync = async (app) => {
       });
 
       return mapLeaf(updated);
+    },
+  );
+
+  r.get(
+    "/leaves/by-ref/:refCode",
+    {
+      schema: {
+        tags: ["leaves"],
+        summary: "Resolve a finalized leaf + its campaign + 3-node path by ref_code",
+        params: z.object({ refCode: z.string().regex(REF_CODE_REGEX) }),
+        response: {
+          200: z.object({
+            leaf: LeafSchema,
+            campaign: CampaignSummarySchema,
+            path: z.array(NodeSchema).length(3),
+          }),
+          404: ErrorBodySchema,
+        },
+      },
+    },
+    async (req, reply) => {
+      const { refCode } = req.params;
+
+      const leaf = await app.prisma.leafMetadata.findUnique({
+        where: { refCode },
+        include: {
+          campaign: { include: { _count: { select: { nodes: true, leaves: true } } } },
+        },
+      });
+      if (!leaf || leaf.status !== "finalized") {
+        return reply.code(404).send({
+          error: "ref_code_not_found",
+          message: `No finalized leaf for ${refCode}`,
+        });
+      }
+
+      const pathNodes = await app.prisma.nodeMetadata.findMany({
+        where: { id: { in: leaf.path } },
+      });
+      if (pathNodes.length !== 3) {
+        return reply.code(404).send({
+          error: "leaf_path_invalid",
+          message: "leaf path is missing nodes",
+        });
+      }
+      const byId = new Map(pathNodes.map((n) => [n.id, n]));
+      const ordered = leaf.path.map((id) => byId.get(id)!).map(mapNode);
+
+      // Buy page surfaces brand/product/redirect; click+conversion stats are
+      // not rendered here, so we skip the activity-counts query.
+      return {
+        leaf: mapLeaf(leaf),
+        campaign: mapCampaign(
+          leaf.campaign as unknown as CampaignWithCounts,
+          { clickCount: 0, conversionsCount: 0 },
+        ),
+        path: ordered,
+      };
     },
   );
 };
