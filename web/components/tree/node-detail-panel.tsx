@@ -33,7 +33,9 @@ const NEXT_LEVEL_LABEL: Record<number, string> = {
 type Props = {
   node: TreeNode;
   onClose: () => void;
-  onSimulateConversion?: (nodeId: string) => void;
+  /** Pulses every node from this one up to the root. Pure visual cue,
+   *  no data mutation — used to show "if this converts, these get paid". */
+  onHighlightPath?: (nodeId: string) => void;
   /** Open the AddNodeDialog with this node as the parent. */
   onAddChild?: (parent: TreeNode) => void;
 };
@@ -41,7 +43,7 @@ type Props = {
 export function NodeDetailPanel({
   node,
   onClose,
-  onSimulateConversion,
+  onHighlightPath,
   onAddChild,
 }: Props) {
   // L4 is a published post — it has no children. Everything else can spawn one.
@@ -164,15 +166,16 @@ export function NodeDetailPanel({
         </Button>
       )}
 
-      {/* Demo affordance — fire a conversion through this exact node */}
-      {onSimulateConversion && (
+      {/* Demo affordance — pulse the ancestors that would get paid if this
+          node converted. Pure visual; counters are not touched. */}
+      {onHighlightPath && (
         <Button
           variant="sting"
           size="sm"
-          onClick={() => onSimulateConversion(node.id)}
+          onClick={() => onHighlightPath(node.id)}
         >
           <Zap className="h-4 w-4" />
-          Simulate +1 conversion
+          Light up path
         </Button>
       )}
 

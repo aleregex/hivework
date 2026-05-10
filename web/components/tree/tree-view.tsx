@@ -212,6 +212,16 @@ export function TreeView({
     [nodes, pathFromNode, bumpConversionAlongPath, pulseFor]
   );
 
+  // Demo affordance: light up every node in the path from this node up to the
+  // root, without bumping any counters. Lets a presenter say "if this node
+  // converts, *these* are the people that get paid" without faking data.
+  const highlightPath = useCallback(
+    (nodeId: string) => {
+      pulseFor(pathFromNode(nodeId, nodes));
+    },
+    [nodes, pathFromNode, pulseFor]
+  );
+
   const fireRandomConversion = useCallback(() => {
     const leaves = nodes.filter((n) => n.level === 4);
     if (leaves.length === 0) return;
@@ -603,7 +613,7 @@ export function TreeView({
                     <NodeDetailPanel
                       node={selected}
                       onClose={() => setSelected(null)}
-                      onSimulateConversion={simulateConversion}
+                      onHighlightPath={highlightPath}
                       onAddChild={(parent) => setAddUnder(parent)}
                     />
                   ) : (
