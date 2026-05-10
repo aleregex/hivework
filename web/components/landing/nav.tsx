@@ -1,50 +1,59 @@
 "use client";
 
 import Link from "next/link";
+import { Logo } from "@/components/ui/logo";
 import { WalletConnectButton } from "@/components/wallet-connect-button";
 
 export function Nav() {
   return (
-    <nav className="sticky top-0 z-50 border-b border-wax/60 bg-hive/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-base font-semibold"
-        >
-          <span aria-hidden className="text-xl">
-            🐝
-          </span>
-          <span>
-            <span className="text-foreground">Hive</span>
-            <span className="text-honey">work</span>
-          </span>
+    <nav className="sticky top-0 z-50 border-b border-line bg-ink/85 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+        <Link href="/" aria-label="Hivework">
+          <Logo />
         </Link>
 
-        <div className="hidden items-center gap-7 text-sm text-muted md:flex">
-          <Link
-            href="#how-it-works"
-            className="transition-colors hover:text-foreground"
-          >
-            How it works
-          </Link>
-          <Link
-            href="#campaigns"
-            className="transition-colors hover:text-foreground"
-          >
-            Active campaigns
-          </Link>
-          <Link
+        <div className="hidden items-center gap-1 font-mono text-[12px] text-muted md:flex">
+          <NavLink href="#protocol">protocol</NavLink>
+          <NavLink href="#campaigns">campaigns</NavLink>
+          <NavLink
             href="https://github.com/aleregex/hivework"
-            target="_blank"
-            rel="noreferrer"
-            className="transition-colors hover:text-foreground"
+            external
           >
-            GitHub
-          </Link>
+            github
+          </NavLink>
         </div>
 
-        <WalletConnectButton />
+        <div className="flex items-center gap-3">
+          <Link
+            href="/campaigns/new"
+            className="hidden font-mono text-[12px] text-muted transition-colors hover:text-foreground sm:inline-flex"
+          >
+            <span className="text-honey">›</span>&nbsp;new campaign
+          </Link>
+          <WalletConnectButton />
+        </div>
       </div>
     </nav>
+  );
+}
+
+function NavLink({
+  href,
+  external,
+  children,
+}: {
+  href: string;
+  external?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noreferrer" : undefined}
+      className="rounded-md px-3 py-1.5 transition-colors hover:bg-surface hover:text-foreground"
+    >
+      {children}
+    </Link>
   );
 }

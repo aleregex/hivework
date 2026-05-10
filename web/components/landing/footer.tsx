@@ -1,56 +1,92 @@
 import Link from "next/link";
+import { Logo } from "@/components/ui/logo";
 
 export function Footer() {
   return (
-    <footer className="border-t border-wax/60 bg-hive">
-      <div className="mx-auto max-w-7xl px-6 py-12">
-        <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
-          <div className="flex items-center gap-3">
-            <span aria-hidden className="text-2xl">
-              🐝
-            </span>
-            <div>
-              <p className="text-base font-semibold">
-                <span className="text-foreground">Hive</span>
-                <span className="text-honey">work</span>
-              </p>
-              <p className="text-xs text-muted">
-                Marketing-as-a-hive on Solana. Built at the hackathon, opened to
-                the world.
-              </p>
-            </div>
+    <footer className="border-t border-line bg-ink">
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
+          <div className="flex max-w-md flex-col gap-3">
+            <Logo />
+            <p className="text-sm leading-relaxed text-fg-soft">
+              Marketing-as-a-hive on Solana. Brands deposit USDC. Humans and AI
+              agents grow trees of decisions. Conversions trigger proportional
+              on-chain payouts.
+            </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-6 text-sm text-muted">
-            <Link
-              href="https://github.com/aleregex/hivework"
-              target="_blank"
-              rel="noreferrer"
-              className="transition-colors hover:text-foreground"
-            >
-              GitHub
-            </Link>
-            <Link
-              href="https://explorer.solana.com/?cluster=devnet"
-              target="_blank"
-              rel="noreferrer"
-              className="transition-colors hover:text-foreground"
-            >
-              Solscan (devnet)
-            </Link>
-            <Link
-              href="#how-it-works"
-              className="transition-colors hover:text-foreground"
-            >
-              How it works
-            </Link>
+          <div className="grid grid-cols-2 gap-8 font-mono text-[12px] text-muted sm:grid-cols-3">
+            <FooterCol title="protocol">
+              <FooterLink href="#protocol">how it works</FooterLink>
+              <FooterLink href="#campaigns">active hives</FooterLink>
+              <FooterLink href="/campaigns/new">launch a campaign</FooterLink>
+            </FooterCol>
+            <FooterCol title="build">
+              <FooterLink
+                href="https://github.com/aleregex/hivework"
+                external
+              >
+                github
+              </FooterLink>
+              <FooterLink
+                href="https://explorer.solana.com/?cluster=devnet"
+                external
+              >
+                solscan (devnet)
+              </FooterLink>
+            </FooterCol>
           </div>
         </div>
 
-        <div className="mt-8 border-t border-wax/40 pt-6 text-xs text-muted">
-          <span>© 2026 Hivework — built on Solana · devnet preview</span>
+        <div className="mt-12 flex flex-col gap-2 border-t border-line pt-6 font-mono text-[11px] text-faint sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            <span className="text-muted">© 2026</span> hivework{" "}
+            <span className="text-line-strong">·</span> built on solana ·
+            devnet preview
+          </span>
+          <span className="tabular">v0.1.0 · commit a8f3c91</span>
         </div>
       </div>
     </footer>
+  );
+}
+
+function FooterCol({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="text-[10px] uppercase tracking-[0.22em] text-faint">
+        {title}
+      </span>
+      <ul className="flex flex-col gap-2">{children}</ul>
+    </div>
+  );
+}
+
+function FooterLink({
+  href,
+  external,
+  children,
+}: {
+  href: string;
+  external?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <li>
+      <Link
+        href={href}
+        target={external ? "_blank" : undefined}
+        rel={external ? "noreferrer" : undefined}
+        className="transition-colors hover:text-foreground"
+      >
+        {children}
+      </Link>
+    </li>
   );
 }
