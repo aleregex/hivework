@@ -14,6 +14,49 @@ use state::*;
 
 declare_id!("8wsaheyJ3e1e8zRUFX22apjvutNcaEagTyk21N75Ybz8");
 
+/// ln(2) × 10000, usado para convertir log2(x) a ln(x).
+const LN2_X10000: u64 = 6931;
+
+/// Aproxima ln(forks + 1) escalado por 10000.
+/// Usa ilog2 (entero) y multiplica por ln(2). Es una cota inferior a la real,
+/// pero monotónica creciente, suficiente para una fórmula de pesos relativos.
+fn ln_x10000(forks_plus_one: u64) -> u64 {
+    if forks_plus_one <= 1 {
+        return 0;
+    }
+    (forks_plus_one.ilog2() as u64) * LN2_X10000
+}
+
+/// richness = min(bytes_metadata / 1000, 1.0), escalado por 10000 → 0..10000.
+fn richness_x10000(bytes_metadata: u32) -> u64 {
+    let capped = (bytes_metadata as u64).min(1000);
+    capped * 10
+}
+
+/// position_factor escalado por 10000.
+/// constants.rs guarda factor × 10 (L1=10, L2=7, L3=5, leaf=3); aquí × 1000 más.
+fn position_x10000(level_pos_x10: u8) -> u64 {
+    (level_pos_x10 as u64) * 1000
+}
+
+/// Fórmula del spec: peso = α·log(forks+1) + β·richness + γ·position.
+/// Devuelve un peso en unidades arbitrarias (el ratio importa, no el absoluto).
+fn calc_weight(
+    forks: u32,
+    bytes_metadata: u32,
+    level_pos_x10: u8,
+    alpha_pct: u8,
+    beta_pct: u8,
+    gamma_pct: u8,
+) -> u64 {
+    let log_term = ln_x10000((forks as u64).saturating_add(1));
+    let rich_term = richness_x10000(bytes_metadata);
+    let pos_term = position_x10000(level_pos_x10);
+    (alpha_pct as u64) * log_term
+        + (beta_pct as u64) * rich_term
+        + (gamma_pct as u64) * pos_term
+}
+
 #[program]
 pub mod hivework {
     use super::*;
@@ -27,7 +70,6 @@ pub mod hivework {
         campaign_id: u32,
         initial_usdc: u64,
     ) -> Result<()> {
-        // Validaciones
         require!(
             (alpha_weight as u16) + (beta_weight as u16) + (gamma_weight as u16) == 100,
             HiveworkError::InvalidWeights
@@ -36,7 +78,6 @@ pub mod hivework {
         require!(deadline > clock.unix_timestamp, HiveworkError::InvalidDeadline);
         require!(initial_usdc > 0, HiveworkError::InsufficientFunds);
 
-        // Transferir USDC de la marca → escrow PDA
         let cpi_accounts = Transfer {
             from: ctx.accounts.authority_usdc.to_account_info(),
             to: ctx.accounts.escrow_usdc.to_account_info(),
@@ -59,6 +100,8 @@ pub mod hivework {
         campaign.deadline = deadline;
         campaign.is_closed = false;
         campaign.conversions_processed = 0;
+        campaign.total_conversions = 0;
+        campaign.forfeited_pool = 0;
         campaign.bump = ctx.bumps.campaign;
 
         emit!(CampaignCreated {
@@ -75,6 +118,7 @@ pub mod hivework {
         ctx: Context<CreateNode>,
         level: u8,
         metadata_hash: [u8; 32],
+        bytes_metadata: u32,
     ) -> Result<()> {
         require!(!ctx.accounts.campaign.is_closed, HiveworkError::CampaignClosed);
         require!((1..=3).contains(&level), HiveworkError::InvalidLevel);
@@ -88,7 +132,6 @@ pub mod hivework {
 
         let node = &mut ctx.accounts.node;
 
-        // Stake en SOL: lamports del creador → PDA del nodo
         let cpi_context = CpiContext::new(
             ctx.accounts.system_program.key(),
             anchor_lang::system_program::Transfer {
@@ -102,6 +145,7 @@ pub mod hivework {
         node.creator = ctx.accounts.creator.key();
         node.level = level;
         node.metadata_hash = metadata_hash;
+        node.bytes_metadata = bytes_metadata;
         node.stake_locked = required_stake;
         node.forks_count = 0;
         node.conversions_count = 0;
@@ -135,10 +179,13 @@ pub mod hivework {
         Ok(())
     }
 
-    pub fn create_leaf(ctx: Context<CreateLeaf>, ref_code: [u8; 8]) -> Result<()> {
+    pub fn create_leaf(
+        ctx: Context<CreateLeaf>,
+        ref_code: [u8; 8],
+        bytes_metadata: u32,
+    ) -> Result<()> {
         require!(!ctx.accounts.campaign.is_closed, HiveworkError::CampaignClosed);
 
-        // Validar path genealógico antes de mutar nada
         require!(ctx.accounts.node_l1.level == 1, HiveworkError::InvalidGenealogicalPath);
         require!(ctx.accounts.node_l2.level == 2, HiveworkError::InvalidGenealogicalPath);
         require!(ctx.accounts.node_l3.level == 3, HiveworkError::InvalidGenealogicalPath);
@@ -150,7 +197,6 @@ pub mod hivework {
             ctx.accounts.node_l2.parent_node == Some(ctx.accounts.node_l1.key()),
             HiveworkError::InvalidGenealogicalPath
         );
-        // Todos los nodos del path pertenecen a la misma campaña
         let campaign_key = ctx.accounts.campaign.key();
         require!(
             ctx.accounts.node_l1.campaign == campaign_key
@@ -161,7 +207,6 @@ pub mod hivework {
 
         let leaf = &mut ctx.accounts.leaf;
 
-        // Stake en SOL para la hoja
         let cpi_context = CpiContext::new(
             ctx.accounts.system_program.key(),
             anchor_lang::system_program::Transfer {
@@ -175,9 +220,11 @@ pub mod hivework {
         leaf.creator = ctx.accounts.creator.key();
         leaf.parent_node = ctx.accounts.node_l3.key();
         leaf.ref_code = ref_code;
+        leaf.bytes_metadata = bytes_metadata;
         leaf.stake_locked = LEAF_STAKE_AMOUNT;
         leaf.conversions_count = 0;
         leaf.claimable_usdc = 0;
+        leaf.redistribution_claimed = false;
         leaf.bump = ctx.bumps.leaf;
 
         leaf.genealogical_path = [
@@ -202,7 +249,6 @@ pub mod hivework {
         value: u64,
     ) -> Result<()> {
         require!(!ctx.accounts.campaign.is_closed, HiveworkError::CampaignClosed);
-        // Path coherente
         let campaign_key = ctx.accounts.campaign.key();
         require!(
             ctx.accounts.leaf.campaign == campaign_key,
@@ -224,7 +270,6 @@ pub mod hivework {
         conversion.is_processed = false;
         conversion.bump = ctx.bumps.conversion;
 
-        // Update counters
         ctx.accounts.leaf.conversions_count =
             ctx.accounts.leaf.conversions_count.checked_add(1).unwrap();
         ctx.accounts.node_l3.conversions_count =
@@ -233,6 +278,13 @@ pub mod hivework {
             ctx.accounts.node_l2.conversions_count.checked_add(1).unwrap();
         ctx.accounts.node_l1.conversions_count =
             ctx.accounts.node_l1.conversions_count.checked_add(1).unwrap();
+
+        ctx.accounts.campaign.total_conversions = ctx
+            .accounts
+            .campaign
+            .total_conversions
+            .checked_add(1)
+            .unwrap();
 
         emit!(ConversionRegistered {
             conversion: conversion.key(),
@@ -260,7 +312,6 @@ pub mod hivework {
             });
         }
 
-        // Procesar una conversión por llamada (idempotente, batch)
         let conversion = &mut ctx.accounts.conversion;
         require!(
             !conversion.is_processed,
@@ -281,25 +332,43 @@ pub mod hivework {
             HiveworkError::InvalidGenealogicalPath
         );
 
-        // Pesos escalados (×10) para evitar floats
-        let alpha_sc = (campaign.alpha_weight as u64) * 10;
-        let beta_sc = (campaign.beta_weight as u64) * 10;
-        let gamma_sc = (campaign.gamma_weight as u64) * 10;
+        let alpha = campaign.alpha_weight;
+        let beta = campaign.beta_weight;
+        let gamma = campaign.gamma_weight;
 
-        let calc = |forks: u32, level_pos: u8| -> u64 {
-            // log(forks+1) aproximado por forks*10 (MVP — nota documentada en README)
-            let log_approx = (forks as u64) * 10;
-            let richness = 500u64; // bytes_metadata no se almacena; constante 0.5 (MVP)
-            let w1 = (alpha_sc * log_approx) / 1000;
-            let w2 = (beta_sc * richness) / 1000;
-            let w3 = (gamma_sc * (level_pos as u64)) / 1000;
-            w1 + w2 + w3
-        };
-
-        let w_l1 = calc(ctx.accounts.node_l1.forks_count, POS_FACTOR_L1);
-        let w_l2 = calc(ctx.accounts.node_l2.forks_count, POS_FACTOR_L2);
-        let w_l3 = calc(ctx.accounts.node_l3.forks_count, POS_FACTOR_L3);
-        let w_leaf = calc(0, POS_FACTOR_LEAF);
+        let w_l1 = calc_weight(
+            ctx.accounts.node_l1.forks_count,
+            ctx.accounts.node_l1.bytes_metadata,
+            POS_FACTOR_L1,
+            alpha,
+            beta,
+            gamma,
+        );
+        let w_l2 = calc_weight(
+            ctx.accounts.node_l2.forks_count,
+            ctx.accounts.node_l2.bytes_metadata,
+            POS_FACTOR_L2,
+            alpha,
+            beta,
+            gamma,
+        );
+        let w_l3 = calc_weight(
+            ctx.accounts.node_l3.forks_count,
+            ctx.accounts.node_l3.bytes_metadata,
+            POS_FACTOR_L3,
+            alpha,
+            beta,
+            gamma,
+        );
+        // El leaf no tiene forks descendientes
+        let w_leaf = calc_weight(
+            0,
+            ctx.accounts.leaf.bytes_metadata,
+            POS_FACTOR_LEAF,
+            alpha,
+            beta,
+            gamma,
+        );
 
         let total_weight = w_l1 + w_l2 + w_l3 + w_leaf;
         require!(total_weight > 0, HiveworkError::MathError);
@@ -338,14 +407,77 @@ pub mod hivework {
         Ok(())
     }
 
+    /// Mueve el stake de un nodo perdedor (sin conversiones) al pool de la campaña.
+    /// Solo callable después de cerrar. Cualquiera puede llamarla — es trabajo público.
+    pub fn forfeit_node_stake(ctx: Context<ForfeitNodeStake>) -> Result<()> {
+        require!(ctx.accounts.campaign.is_closed, HiveworkError::CampaignNotClosed);
+        require!(
+            ctx.accounts.node.conversions_count == 0,
+            HiveworkError::NodeIsWinner
+        );
+        require!(
+            ctx.accounts.node.stake_locked > 0,
+            HiveworkError::NoStakeToForfeit
+        );
+
+        let stake = ctx.accounts.node.stake_locked;
+        ctx.accounts.node.stake_locked = 0;
+
+        **ctx.accounts.node.to_account_info().try_borrow_mut_lamports()? -= stake;
+        **ctx
+            .accounts
+            .campaign
+            .to_account_info()
+            .try_borrow_mut_lamports()? += stake;
+
+        ctx.accounts.campaign.forfeited_pool = ctx
+            .accounts
+            .campaign
+            .forfeited_pool
+            .checked_add(stake)
+            .unwrap();
+
+        Ok(())
+    }
+
+    /// Mueve el stake de un leaf perdedor al pool de la campaña.
+    pub fn forfeit_leaf_stake(ctx: Context<ForfeitLeafStake>) -> Result<()> {
+        require!(ctx.accounts.campaign.is_closed, HiveworkError::CampaignNotClosed);
+        require!(
+            ctx.accounts.leaf.conversions_count == 0,
+            HiveworkError::NodeIsWinner
+        );
+        require!(
+            ctx.accounts.leaf.stake_locked > 0,
+            HiveworkError::NoStakeToForfeit
+        );
+
+        let stake = ctx.accounts.leaf.stake_locked;
+        ctx.accounts.leaf.stake_locked = 0;
+
+        **ctx.accounts.leaf.to_account_info().try_borrow_mut_lamports()? -= stake;
+        **ctx
+            .accounts
+            .campaign
+            .to_account_info()
+            .try_borrow_mut_lamports()? += stake;
+
+        ctx.accounts.campaign.forfeited_pool = ctx
+            .accounts
+            .campaign
+            .forfeited_pool
+            .checked_add(stake)
+            .unwrap();
+
+        Ok(())
+    }
+
     pub fn claim_payout(ctx: Context<ClaimPayout>) -> Result<()> {
         let amount = ctx.accounts.node.claimable_usdc;
         require!(amount > 0, HiveworkError::InsufficientFunds);
 
-        // CEI: state primero
         ctx.accounts.node.claimable_usdc = 0;
 
-        // Liberar stake en lamports si el nodo aportó conversiones
         let stake_to_release = if ctx.accounts.node.conversions_count > 0
             && ctx.accounts.node.stake_locked > 0
         {
@@ -356,7 +488,6 @@ pub mod hivework {
             0
         };
 
-        // SPL transfer firmado por la PDA de la campaña
         let auth_bytes = ctx.accounts.campaign.authority.to_bytes();
         let id_bytes = ctx.accounts.campaign.id.to_le_bytes();
         let bump = ctx.accounts.campaign.bump;
@@ -442,6 +573,62 @@ pub mod hivework {
 
         Ok(())
     }
+
+    /// Distribuye al creador del leaf una porción del pool forfeit, proporcional
+    /// a sus conversiones sobre el total. Solo se puede reclamar una vez por leaf.
+    /// Solo leaves ganadores (conversions_count > 0) son elegibles.
+    pub fn claim_redistribution(ctx: Context<ClaimRedistribution>) -> Result<()> {
+        require!(
+            ctx.accounts.campaign.is_closed,
+            HiveworkError::CampaignNotClosed
+        );
+        require!(
+            ctx.accounts.leaf.conversions_count > 0,
+            HiveworkError::NodeIsWinner
+        );
+        require!(
+            !ctx.accounts.leaf.redistribution_claimed,
+            HiveworkError::RedistributionAlreadyClaimed
+        );
+        require!(
+            ctx.accounts.campaign.total_conversions > 0,
+            HiveworkError::MathError
+        );
+
+        let pool = ctx.accounts.campaign.forfeited_pool;
+        if pool == 0 {
+            ctx.accounts.leaf.redistribution_claimed = true;
+            return Ok(());
+        }
+
+        let share = (pool as u128) * (ctx.accounts.leaf.conversions_count as u128)
+            / (ctx.accounts.campaign.total_conversions as u128);
+        let share = share as u64;
+
+        if share > 0 {
+            // No bajar de rent-exempt para la cuenta campaign
+            let campaign_ai = ctx.accounts.campaign.to_account_info();
+            let rent = Rent::get()?;
+            let min = rent.minimum_balance(campaign_ai.data_len());
+            let available = campaign_ai
+                .lamports()
+                .saturating_sub(min);
+            let payout = share.min(available).min(pool);
+
+            **ctx.accounts.campaign.to_account_info().try_borrow_mut_lamports()? -= payout;
+            **ctx
+                .accounts
+                .creator
+                .to_account_info()
+                .try_borrow_mut_lamports()? += payout;
+
+            ctx.accounts.campaign.forfeited_pool =
+                ctx.accounts.campaign.forfeited_pool.saturating_sub(payout);
+        }
+
+        ctx.accounts.leaf.redistribution_claimed = true;
+        Ok(())
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -480,7 +667,7 @@ pub struct CreateCampaign<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
 
-    /// CHECK: pubkey del oracle autorizado, se almacena para validar conversiones
+    /// CHECK: pubkey del oracle autorizado, almacenada para validar conversiones
     pub oracle_authority: UncheckedAccount<'info>,
 
     pub token_program: Program<'info, Token>,
@@ -490,7 +677,7 @@ pub struct CreateCampaign<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(level: u8, metadata_hash: [u8; 32])]
+#[instruction(level: u8, metadata_hash: [u8; 32], bytes_metadata: u32)]
 pub struct CreateNode<'info> {
     #[account(
         init,
@@ -509,7 +696,7 @@ pub struct CreateNode<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(ref_code: [u8; 8])]
+#[instruction(ref_code: [u8; 8], bytes_metadata: u32)]
 pub struct CreateLeaf<'info> {
     #[account(
         init,
@@ -523,7 +710,6 @@ pub struct CreateLeaf<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
 
-    // Path genealógico explícito (validación en handler)
     pub node_l1: Account<'info, Node>,
     pub node_l2: Account<'info, Node>,
     pub node_l3: Account<'info, Node>,
@@ -542,6 +728,7 @@ pub struct RegisterConversion<'info> {
         bump
     )]
     pub conversion: Account<'info, Conversion>,
+    #[account(mut)]
     pub campaign: Account<'info, Campaign>,
     #[account(mut)]
     pub leaf: Account<'info, Leaf>,
@@ -574,7 +761,27 @@ pub struct CloseAndDistribute<'info> {
     #[account(mut)]
     pub node_l3: Account<'info, Node>,
     #[account(mut)]
-    pub authority: Signer<'info>, // cualquiera puede empujar el batch
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ForfeitNodeStake<'info> {
+    #[account(mut, has_one = campaign)]
+    pub node: Account<'info, Node>,
+    #[account(mut)]
+    pub campaign: Account<'info, Campaign>,
+    #[account(mut)]
+    pub caller: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ForfeitLeafStake<'info> {
+    #[account(mut, has_one = campaign)]
+    pub leaf: Account<'info, Leaf>,
+    #[account(mut)]
+    pub campaign: Account<'info, Campaign>,
+    #[account(mut)]
+    pub caller: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -629,4 +836,16 @@ pub struct ClaimLeafPayout<'info> {
     pub creator: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimRedistribution<'info> {
+    #[account(mut, has_one = creator, has_one = campaign)]
+    pub leaf: Account<'info, Leaf>,
+
+    #[account(mut)]
+    pub campaign: Account<'info, Campaign>,
+
+    #[account(mut)]
+    pub creator: Signer<'info>,
 }

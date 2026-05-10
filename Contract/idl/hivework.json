@@ -154,6 +154,46 @@
       "args": []
     },
     {
+      "name": "claim_redistribution",
+      "docs": [
+        "Distribuye al creador del leaf una porción del pool forfeit, proporcional",
+        "a sus conversiones sobre el total. Solo se puede reclamar una vez por leaf.",
+        "Solo leaves ganadores (conversions_count > 0) son elegibles."
+      ],
+      "discriminator": [
+        173,
+        164,
+        210,
+        153,
+        207,
+        123,
+        195,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "leaf",
+          "writable": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "relations": [
+            "leaf"
+          ]
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "leaf"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "close_and_distribute",
       "discriminator": [
         31,
@@ -458,6 +498,10 @@
               8
             ]
           }
+        },
+        {
+          "name": "bytes_metadata",
+          "type": "u32"
         }
       ]
     },
@@ -534,8 +578,83 @@
               32
             ]
           }
+        },
+        {
+          "name": "bytes_metadata",
+          "type": "u32"
         }
       ]
+    },
+    {
+      "name": "forfeit_leaf_stake",
+      "docs": [
+        "Mueve el stake de un leaf perdedor al pool de la campaña."
+      ],
+      "discriminator": [
+        205,
+        211,
+        245,
+        23,
+        188,
+        157,
+        50,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "leaf",
+          "writable": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "relations": [
+            "leaf"
+          ]
+        },
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "forfeit_node_stake",
+      "docs": [
+        "Mueve el stake de un nodo perdedor (sin conversiones) al pool de la campaña.",
+        "Solo callable después de cerrar. Cualquiera puede llamarla — es trabajo público."
+      ],
+      "discriminator": [
+        65,
+        243,
+        122,
+        241,
+        57,
+        126,
+        171,
+        11
+      ],
+      "accounts": [
+        {
+          "name": "node",
+          "writable": true
+        },
+        {
+          "name": "campaign",
+          "writable": true,
+          "relations": [
+            "node"
+          ]
+        },
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "register_conversion",
@@ -586,7 +705,8 @@
           }
         },
         {
-          "name": "campaign"
+          "name": "campaign",
+          "writable": true
         },
         {
           "name": "leaf",
@@ -817,6 +937,21 @@
       "code": 6012,
       "name": "InvalidDeadline",
       "msg": "La deadline debe ser una fecha futura"
+    },
+    {
+      "code": 6013,
+      "name": "NodeIsWinner",
+      "msg": "Solo nodos sin conversiones pueden ser forfeit"
+    },
+    {
+      "code": 6014,
+      "name": "NoStakeToForfeit",
+      "msg": "No hay stake para forfeit"
+    },
+    {
+      "code": 6015,
+      "name": "RedistributionAlreadyClaimed",
+      "msg": "La redistribución de este leaf ya fue reclamada"
     }
   ],
   "types": [
@@ -876,6 +1011,14 @@
           {
             "name": "conversions_processed",
             "type": "u32"
+          },
+          {
+            "name": "total_conversions",
+            "type": "u32"
+          },
+          {
+            "name": "forfeited_pool",
+            "type": "u64"
           },
           {
             "name": "bump",
@@ -1025,6 +1168,10 @@
             }
           },
           {
+            "name": "bytes_metadata",
+            "type": "u32"
+          },
+          {
             "name": "stake_locked",
             "type": "u64"
           },
@@ -1035,6 +1182,10 @@
           {
             "name": "claimable_usdc",
             "type": "u64"
+          },
+          {
+            "name": "redistribution_claimed",
+            "type": "bool"
           },
           {
             "name": "bump",
@@ -1103,6 +1254,10 @@
                 32
               ]
             }
+          },
+          {
+            "name": "bytes_metadata",
+            "type": "u32"
           },
           {
             "name": "stake_locked",

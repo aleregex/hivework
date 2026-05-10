@@ -69,6 +69,9 @@ npm start
 | `close_and_distribute` | Cierra campaña y distribuye USDC por batch |
 | `claim_payout` | Wallet retira USDC acumulado (nodos) |
 | `claim_leaf_payout` | Wallet retira USDC acumulado (hojas) |
+| `forfeit_node_stake` | Forfeit stake de un nodo perdedor → pool de redistribución |
+| `forfeit_leaf_stake` | Forfeit stake de una hoja perdedora → pool de redistribución |
+| `claim_redistribution` | Hoja ganadora reclama su porción del pool forfeit |
 
 ## Stakes anti-spam
 
@@ -104,6 +107,9 @@ npm start
 | 6010 | DataTooLarge | Excede máxima longitud |
 | 6011 | InvalidWeights | α + β + γ ≠ 100 |
 | 6012 | InvalidDeadline | Deadline en el pasado |
+| 6013 | NodeIsWinner | Solo nodos sin conversiones pueden ser forfeit |
+| 6014 | NoStakeToForfeit | No hay stake para forfeit |
+| 6015 | RedistributionAlreadyClaimed | El leaf ya reclamó su porción del pool |
 
 ## Cambios v0.2 (USDC real + auth oracle)
 
@@ -170,4 +176,49 @@ El demo necesita un mint de USDC para devnet. Dos opciones:
 cd Contract
 npm install      # primera vez
 anchor test --provider.cluster devnet
+```
+
+## Fórmula implementada (literal del spec)
+
+```
+peso(nodo) = α × ln(forks_descendientes + 1)
+           + β × min(bytes_metadata / 1000, 1.0)
+           + γ × position_factor[nivel]
+```
+
+- `α = 0.4`, `β = 0.4`, `γ = 0.2` (configurable por la marca, deben sumar 100)
+- `position_factor`: L1=1.0, L2=0.7, L3=0.5, leaf=0.3
+- `ln(x)` aproximado on-chain como `ilog2(x) × ln(2)` con escalado entero (sin floats)
+- `bytes_metadata` lo aporta el creador al llamar `create_node`/`create_leaf`. Debería corresponder al tamaño en bytes del JSON canónico de metadata. La marca puede inspeccionar el `metadata_hash` (SHA-256) y el indexer guarda el JSON real.
+
+Distribución de cada conversión:
+
+1. Resta 5% de platform_fee
+2. Reserva 30% bonus para el leaf
+3. Restante (65% de la conversión) se reparte entre L1, L2, L3 y leaf según pesos
+4. El leaf recibe su porción + el 30% bonus
+
+## Redistribución de stakes (anti-spam con incentivo positivo)
+
+- Al cierre, cualquiera puede llamar `forfeit_node_stake` / `forfeit_leaf_stake` sobre cuentas con `conversions_count == 0` y `stake_locked > 0`. El stake se mueve a `Campaign.forfeited_pool`.
+- Cada leaf ganadora puede llamar `claim_redistribution` UNA vez para retirar `pool × leaf.conversions_count / campaign.total_conversions` lamports.
+- Decisión MVP: solo leaves participan en la redistribución (no los nodos), porque cada conversión incrementa exactamente un leaf, dando una proporción matemáticamente limpia. Los nodos ganadores ya recuperan su stake completo al hacer `claim_payout`.
+
+## Anti-fraude del oracle
+
+`oracle/index.js` aplica los 3 filtros del spec antes de firmar:
+1. **Validación de wallet/pubkey**: todas las pubkeys del payload deben ser base58 válidas.
+2. **IP no duplicada**: máx 5 conversiones por IP en 60s, con intervalo mínimo de 5s.
+3. **Timing por wallet+campaign**: misma wallet/leaf no puede repetir < 30s.
+
+## Configuración del oracle (con la keypair de B3)
+
+B3 ya generó la keypair en `indexer/oracle.json` con pubkey `FkSMCtbcPdeNJLSnzMxWn8biR1fPyUF1wqLHhwGNdoEU`. Para correr el oracle service apuntando a ese archivo:
+
+```bash
+cd Contract/oracle
+cp .env.example .env
+# .env ya viene con ORACLE_KEYPAIR_PATH=../../indexer/oracle.json
+npm install
+npm start
 ```

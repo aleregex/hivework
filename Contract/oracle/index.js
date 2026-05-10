@@ -1,34 +1,46 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const { Connection, Keypair, PublicKey, SystemProgram } = require('@solana/web3.js');
 const { Program, AnchorProvider, Wallet, BN } = require('@coral-xyz/anchor');
 const bs58 = require('bs58').default;
-const path = require('path');
 
 const app = express();
 app.use(express.json());
+app.set('trust proxy', true); // confiar en X-Forwarded-For si está detrás de proxy
 
-// Configuración
 const PORT = process.env.PORT || 3001;
 const RPC_URL = process.env.RPC_URL || 'https://api.devnet.solana.com';
-const PRIVATE_KEY = process.env.ORACLE_PRIVATE_KEY;
+const PRIVATE_KEY_BS58 = process.env.ORACLE_PRIVATE_KEY;
+const KEYPAIR_PATH = process.env.ORACLE_KEYPAIR_PATH; // alternativa: ruta a JSON tipo solana-keygen
 const PROGRAM_ID_STR = process.env.PROGRAM_ID;
 
-if (!PRIVATE_KEY) {
-  console.error("Falta ORACLE_PRIVATE_KEY en .env");
+// Cargar keypair: prioridad ORACLE_KEYPAIR_PATH (formato JSON solana) > ORACLE_PRIVATE_KEY (base58)
+function loadKeypair() {
+  if (KEYPAIR_PATH) {
+    const resolved = path.resolve(KEYPAIR_PATH);
+    if (!fs.existsSync(resolved)) {
+      console.error(`ORACLE_KEYPAIR_PATH apunta a ${resolved} pero no existe.`);
+      process.exit(1);
+    }
+    const raw = JSON.parse(fs.readFileSync(resolved, 'utf-8'));
+    return Keypair.fromSecretKey(Uint8Array.from(raw));
+  }
+  if (PRIVATE_KEY_BS58) {
+    return Keypair.fromSecretKey(bs58.decode(PRIVATE_KEY_BS58));
+  }
+  console.error("Falta ORACLE_KEYPAIR_PATH o ORACLE_PRIVATE_KEY en .env");
   process.exit(1);
 }
 
-// Keypair del Oracle
-const oracleKeypair = Keypair.fromSecretKey(bs58.decode(PRIVATE_KEY));
+const oracleKeypair = loadKeypair();
 console.log(`Oracle pubkey: ${oracleKeypair.publicKey.toBase58()}`);
 
-// Conexión y Provider
 const connection = new Connection(RPC_URL, 'confirmed');
 const wallet = new Wallet(oracleKeypair);
 const provider = new AnchorProvider(connection, wallet, { preflightCommitment: 'confirmed' });
 
-// Cargar IDL y crear instancia del programa
 let program;
 try {
   const idl = require('../target/idl/hivework.json');
@@ -40,25 +52,58 @@ try {
   console.log("Asegúrate de haber corrido 'anchor build' primero.");
 }
 
-// Anti-fraude básico: rate limiting por IP y wallet
-const recentConversions = new Map(); // key: wallet+campaign, value: timestamp
-const RATE_LIMIT_MS = 30_000; // 30 segundos entre conversiones de la misma wallet
+// ---- Anti-fraude básico (spec grupo_a.md) ---------------------------------
+// 1. Verificación de wallet: pubkey base58 válida (32 bytes)
+// 2. IP no duplicada: misma IP no puede registrar > N conversiones en M segundos
+// 3. Timing razonable: misma wallet+campaign no puede repetir en < 30s
+const RATE_WALLET_MS = 30_000;          // ventana por wallet+campaign
+const RATE_IP_MS     = 5_000;           // ventana entre conversiones de la misma IP
+const IP_BURST_MAX   = 5;               // máx. 5 conversiones por IP en 60s
+const IP_BURST_WINDOW = 60_000;
 
-function isLegitimate(walletPubkey, campaignPubkey, ip) {
-  const key = `${walletPubkey}-${campaignPubkey}`;
-  const now = Date.now();
-  const last = recentConversions.get(key);
+const lastByWallet = new Map(); // key: wallet|campaign → timestamp
+const lastByIp     = new Map(); // key: ip → timestamp
+const ipBucket     = new Map(); // key: ip → array de timestamps
 
-  if (last && (now - last) < RATE_LIMIT_MS) {
-    console.log(`Rate limit: ${key} intentó demasiado rápido`);
-    return false;
-  }
-
-  recentConversions.set(key, now);
-  return true;
+function isValidPubkey(s) {
+  if (typeof s !== 'string') return false;
+  try { new PublicKey(s); return true; } catch { return false; }
 }
 
-// POST /webhook/conversion — Grupo B envía aquí las conversiones
+function isLegitimate({ walletPubkey, campaignPubkey, ip }) {
+  const now = Date.now();
+
+  // Filtro 1: timing por wallet+campaign
+  if (walletPubkey) {
+    const walletKey = `${walletPubkey}|${campaignPubkey}`;
+    const last = lastByWallet.get(walletKey);
+    if (last && (now - last) < RATE_WALLET_MS) {
+      return { ok: false, reason: `wallet rate limit (${Math.ceil((RATE_WALLET_MS - (now - last)) / 1000)}s)` };
+    }
+    lastByWallet.set(walletKey, now);
+  }
+
+  // Filtro 2: misma IP no demasiado seguido
+  if (ip) {
+    const last = lastByIp.get(ip);
+    if (last && (now - last) < RATE_IP_MS) {
+      return { ok: false, reason: 'ip rate limit (intervalo)' };
+    }
+    lastByIp.set(ip, now);
+
+    // Filtro 3: ráfaga por IP (máx N en ventana M)
+    const arr = (ipBucket.get(ip) || []).filter(t => now - t < IP_BURST_WINDOW);
+    if (arr.length >= IP_BURST_MAX) {
+      return { ok: false, reason: 'ip rate limit (ráfaga)' };
+    }
+    arr.push(now);
+    ipBucket.set(ip, arr);
+  }
+
+  return { ok: true };
+}
+
+// POST /webhook/conversion — Grupo B envía conversiones
 app.post('/webhook/conversion', async (req, res) => {
   try {
     const {
@@ -67,26 +112,45 @@ app.post('/webhook/conversion', async (req, res) => {
       node_l1_pubkey,
       node_l2_pubkey,
       node_l3_pubkey,
-      conversion_id, // string de 16 chars
+      conversion_id,   // string de hasta 16 chars
       value_usdc,
-      wallet_address
+      wallet_address,  // wallet del comprador (opcional pero recomendado)
     } = req.body;
 
-    if (!campaign_pubkey || !leaf_pubkey || !value_usdc || !conversion_id) {
-      return res.status(400).json({ error: 'Faltan parámetros requeridos.' });
+    // Validación de wallet (spec: anti-fraude)
+    for (const [name, val] of [
+      ['campaign_pubkey', campaign_pubkey],
+      ['leaf_pubkey', leaf_pubkey],
+      ['node_l1_pubkey', node_l1_pubkey],
+      ['node_l2_pubkey', node_l2_pubkey],
+      ['node_l3_pubkey', node_l3_pubkey],
+    ]) {
+      if (!isValidPubkey(val)) return res.status(400).json({ error: `${name} no es una pubkey válida` });
+    }
+    if (wallet_address && !isValidPubkey(wallet_address)) {
+      return res.status(400).json({ error: 'wallet_address no es una pubkey válida' });
+    }
+    if (typeof conversion_id !== 'string' || conversion_id.length === 0) {
+      return res.status(400).json({ error: 'conversion_id requerido (string)' });
+    }
+    if (typeof value_usdc !== 'number' && typeof value_usdc !== 'string') {
+      return res.status(400).json({ error: 'value_usdc requerido' });
     }
 
-    // Anti-fraude
-    const clientIp = req.ip || req.connection.remoteAddress;
-    if (!isLegitimate(wallet_address || leaf_pubkey, campaign_pubkey, clientIp)) {
-      return res.status(429).json({ error: 'Rate limit: conversión demasiado frecuente.' });
+    const ip = req.ip || req.connection.remoteAddress;
+    const guard = isLegitimate({
+      walletPubkey: wallet_address || leaf_pubkey,
+      campaignPubkey: campaign_pubkey,
+      ip,
+    });
+    if (!guard.ok) {
+      return res.status(429).json({ error: `Anti-fraude: ${guard.reason}` });
     }
 
     if (!program) {
       return res.status(503).json({ error: 'Programa no inicializado. IDL no cargado.' });
     }
 
-    // Preparar datos
     const idBuffer = Buffer.alloc(16);
     idBuffer.write(conversion_id.substring(0, 16));
     const value = new BN(value_usdc);
@@ -95,18 +159,12 @@ app.post('/webhook/conversion', async (req, res) => {
     const leafKey = new PublicKey(leaf_pubkey);
 
     const [conversionPda] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from("conversion"),
-        campaignKey.toBuffer(),
-        leafKey.toBuffer(),
-        idBuffer
-      ],
+      [Buffer.from("conversion"), campaignKey.toBuffer(), leafKey.toBuffer(), idBuffer],
       program.programId
     );
 
-    console.log(`Firmando conversión ${conversion_id} → PDA: ${conversionPda.toBase58()}`);
+    console.log(`Firmando conversión ${conversion_id} → ${conversionPda.toBase58()}`);
 
-    // Enviar transacción al contrato
     const tx = await program.methods.registerConversion(Array.from(idBuffer), value)
       .accounts({
         conversion: conversionPda,
@@ -129,19 +187,18 @@ app.post('/webhook/conversion', async (req, res) => {
       tx,
       pda: conversionPda.toBase58(),
     });
-
   } catch (error) {
     console.error("Error procesando webhook:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     oracle: oracleKeypair.publicKey.toBase58(),
     program: program ? program.programId.toBase58() : 'not loaded',
+    rpc: RPC_URL,
   });
 });
 

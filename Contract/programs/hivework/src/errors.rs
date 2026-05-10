@@ -28,4 +28,10 @@ pub enum HiveworkError {
     InvalidWeights,
     #[msg("La deadline debe ser una fecha futura")]
     InvalidDeadline,
+    #[msg("Solo nodos sin conversiones pueden ser forfeit")]
+    NodeIsWinner,
+    #[msg("No hay stake para forfeit")]
+    NoStakeToForfeit,
+    #[msg("La redistribución de este leaf ya fue reclamada")]
+    RedistributionAlreadyClaimed,
 }
