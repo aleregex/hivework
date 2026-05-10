@@ -98,10 +98,10 @@ export function AddNodeDialog({
           <DialogHeader>
             <DialogTitle>Publishing a post, not a node</DialogTitle>
             <DialogDescription>
-              Children of an L3 visual are <span className="text-honey">posts</span>{" "}
-              — published content with a ref-link + QR. That flow is on the
-              tree itself: switch to the Publish tab and we&apos;ll pre-lock the
-              path up to this visual.
+              Children of an L3 visual are{" "}
+              <span className="text-honey">posts</span> — published content with
+              a ref-link + QR. That flow is on the tree itself: switch to the
+              Publish tab and we&apos;ll pre-lock the path up to this visual.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

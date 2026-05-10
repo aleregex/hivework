@@ -7,7 +7,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getLeafByRefCode } from "@/lib/mocks/leaves";
+import { useLeafByRef, postDemoConvert } from "@/lib/api/hooks";
+import { adaptLeafBuyContext } from "@/lib/api/adapters";
+import { ApiError } from "@/lib/api/client";
 
 type PageProps = {
   params: Promise<{ refCode: string }>;
@@ -15,9 +17,20 @@ type PageProps = {
 
 export default function BuyPage({ params }: PageProps) {
   const { refCode } = use(params);
-  const ctx = getLeafByRefCode(refCode);
+  const { data, isLoading } = useLeafByRef(refCode);
+  const ctx = data ? adaptLeafBuyContext(data) : null;
   const [purchased, setPurchased] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  if (isLoading) {
+    return (
+      <main className="bg-honeycomb min-h-screen p-12">
+        <div className="mx-auto max-w-md rounded-xl border border-wax bg-comb p-8 text-center">
+          <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted" />
+        </div>
+      </main>
+    );
+  }
 
   if (!ctx) {
     return (
@@ -39,15 +52,26 @@ export default function BuyPage({ params }: PageProps) {
   const { leaf, campaign, path, pricingUsdc } = ctx;
 
   async function buy() {
-    // TODO(group-c, task #6): POST /api/conversions to Group B's backend with the ref_code.
-    // Backend verifies, oracle signs, smart contract registers the conversion on-chain.
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    setLoading(false);
-    setPurchased(true);
-    toast.success("Conversion registered on-chain", {
-      description: `$${pricingUsdc} distributed across ${path.length} contributors.`,
-    });
+    try {
+      await postDemoConvert({
+        refCode,
+        valueUsdc: pricingUsdc,
+        source: "demo_buy_page",
+      });
+      setPurchased(true);
+      toast.success("Conversion registered on-chain", {
+        description: `$${pricingUsdc} distributed across ${path.length} contributors.`,
+      });
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : "Couldn't register conversion. Try again.";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

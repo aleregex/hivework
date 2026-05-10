@@ -9,15 +9,21 @@ import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { usePortfolio } from "@/lib/api/hooks";
 import {
-  MOCK_CLAIMED_PAYOUTS,
-  MOCK_PENDING_PAYOUTS,
-  LIFETIME_TOTAL_USDC,
-} from "@/lib/mocks/payouts";
+  adaptPortfolioClaimed,
+  adaptPortfolioLifetime,
+  adaptPortfolioPending,
+} from "@/lib/api/adapters";
 
 export default function ClaimPage() {
   const { publicKey } = useWallet();
   const [claiming, setClaiming] = useState<string | null>(null);
+
+  const { data: portfolio } = usePortfolio(publicKey?.toBase58());
+  const pending = portfolio ? adaptPortfolioPending(portfolio) : [];
+  const claimed = portfolio ? adaptPortfolioClaimed(portfolio) : [];
+  const lifetime = portfolio ? adaptPortfolioLifetime(portfolio) : 0;
 
   async function claim(campaignId: string, amount: number) {
     // TODO(group-c, task #6): replace with Anchor claimPayout tx.
@@ -51,7 +57,7 @@ export default function ClaimPage() {
               Lifetime earnings
             </span>
             <span className="font-mono text-2xl font-semibold text-honey">
-              ${LIFETIME_TOTAL_USDC.toFixed(2)}
+              ${lifetime.toFixed(2)}
             </span>
           </CardContent>
         </Card>
@@ -61,11 +67,7 @@ export default function ClaimPage() {
               Pending across campaigns
             </span>
             <span className="font-mono text-2xl font-semibold">
-              $
-              {MOCK_PENDING_PAYOUTS.reduce(
-                (sum, p) => sum + p.pendingUsdc,
-                0
-              ).toFixed(2)}
+              ${pending.reduce((sum, p) => sum + p.pendingUsdc, 0).toFixed(2)}
             </span>
           </CardContent>
         </Card>
@@ -85,7 +87,7 @@ export default function ClaimPage() {
       <div className="mt-10">
         <h2 className="text-xl font-semibold tracking-tight">Pending</h2>
         <div className="mt-3 grid gap-3">
-          {MOCK_PENDING_PAYOUTS.map((p) => (
+          {pending.map((p) => (
             <Card key={p.campaignId}>
               <CardHeader className="flex-row items-center justify-between gap-4 pb-3">
                 <div>
@@ -137,7 +139,7 @@ export default function ClaimPage() {
               </CardContent>
             </Card>
           ))}
-          {MOCK_PENDING_PAYOUTS.length === 0 && (
+          {pending.length === 0 && (
             <Card>
               <CardContent className="p-6 text-center text-sm text-muted">
                 No pending payouts yet. Contribute to a campaign to start
@@ -163,7 +165,7 @@ export default function ClaimPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-wax/60">
-                {MOCK_CLAIMED_PAYOUTS.map((c) => (
+                {claimed.map((c) => (
                   <tr key={c.txSignature}>
                     <td className="px-5 py-3">{c.campaignName}</td>
                     <td className="px-5 py-3 font-mono text-honey">

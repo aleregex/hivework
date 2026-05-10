@@ -11,13 +11,27 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MOCK_CAMPAIGNS } from "@/lib/mocks/campaigns";
+import { apiFetch } from "@/lib/api/client";
+import { adaptCampaign } from "@/lib/api/adapters";
+import type { ApiCampaignSummary, ApiPaginated } from "@/lib/api/types";
 
 export const metadata = {
   title: "Campaigns · Hivework",
 };
 
-export default function CampaignsPage() {
+export default async function CampaignsPage() {
+  // Server-side fetch — fresh on every request, no client flicker.
+  let campaigns: ReturnType<typeof adaptCampaign>[] = [];
+  try {
+    const data = await apiFetch<ApiPaginated<ApiCampaignSummary>>(
+      "/campaigns/active?limit=50"
+    );
+    campaigns = data.items.map(adaptCampaign);
+  } catch {
+    // api unreachable during local dev / build — render empty grid.
+    campaigns = [];
+  }
+
   return (
     <AppShell>
       <div className="flex flex-col gap-2">
@@ -42,7 +56,7 @@ export default function CampaignsPage() {
       </div>
 
       <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {MOCK_CAMPAIGNS.map((c) => {
+        {campaigns.map((c) => {
           const progress = Math.round((c.spentUsdc / c.poolUsdc) * 100);
           return (
             <Card

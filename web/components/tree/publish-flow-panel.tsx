@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { getNodeById, type TreeNode } from "@/lib/mocks/tree";
+import { type TreeNode } from "@/lib/mocks/tree";
 
 export type PublishStep = "hook" | "audio" | "visual";
 
@@ -46,6 +46,8 @@ type Props = {
   onClearStep: (step: PublishStep) => void;
   onPublish: () => void;
   onReset: () => void;
+  /** Current tree nodes — used to resolve hook/audio/visual titles. */
+  nodes: TreeNode[];
 };
 
 /**
@@ -60,10 +62,13 @@ export function PublishFlowPanel({
   onClearStep,
   onPublish,
   onReset,
+  nodes,
 }: Props) {
-  const hook = state.hookId ? getNodeById(state.hookId) : undefined;
-  const audio = state.audioId ? getNodeById(state.audioId) : undefined;
-  const visual = state.visualId ? getNodeById(state.visualId) : undefined;
+  const findById = (id: string | null) =>
+    id ? nodes.find((n) => n.id === id) : undefined;
+  const hook = findById(state.hookId);
+  const audio = findById(state.audioId);
+  const visual = findById(state.visualId);
   const pathComplete = !!hook && !!audio && !!visual;
 
   // After publish: show the QR + link state.
@@ -172,7 +177,10 @@ function Step({
     <li
       className={`relative flex items-start gap-3 rounded-md border p-3 transition-colors ${stateClass}`}
     >
-      <StepBadge step={step} state={filled ? "done" : active ? "active" : "idle"} />
+      <StepBadge
+        step={step}
+        state={filled ? "done" : active ? "active" : "idle"}
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
@@ -195,8 +203,7 @@ function Step({
               {node.title}
             </p>
             <p className="mt-1 font-mono text-[11px] text-muted">
-              @{node.authorHandle}{" "}
-              <span className="text-faint">·</span>{" "}
+              @{node.authorHandle} <span className="text-faint">·</span>{" "}
               <span className="text-sting tabular">
                 {node.conversions} conv
               </span>
@@ -240,9 +247,7 @@ function StepBadge({
 }
 
 function Connector() {
-  return (
-    <div className="ml-3 h-3 w-px bg-line-strong" aria-hidden />
-  );
+  return <div className="ml-3 h-3 w-px bg-line-strong" aria-hidden />;
 }
 
 /* ------------------------------------------------------------------ *
@@ -380,16 +385,10 @@ function PublishedCard({
         You get a +30% post bonus on top.
       </div>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onReset}
-        className="mt-auto"
-      >
+      <Button variant="ghost" size="sm" onClick={onReset} className="mt-auto">
         <RotateCcw className="h-3.5 w-3.5" />
         Publish another post
       </Button>
     </motion.aside>
   );
 }
-

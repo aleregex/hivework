@@ -192,9 +192,12 @@ export function TreeGraph({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 800, h: 560 });
   const [view, setView] = useState({ scale: 1, tx: 0, ty: 0 });
-  const dragRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(
-    null
-  );
+  const dragRef = useRef<{
+    x: number;
+    y: number;
+    tx: number;
+    ty: number;
+  } | null>(null);
 
   // ResizeObserver to keep the SVG matching its container.
   useEffect(() => {
@@ -245,18 +248,21 @@ export function TreeGraph({
     });
   }, []);
 
-  const onPointerDown = useCallback((e: ReactPointerEvent<SVGSVGElement>) => {
-    if (e.button !== 0) return;
-    const target = e.target as Element;
-    if (target.closest("[data-node]")) return; // clicking a node, not panning
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
-    dragRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      tx: view.tx,
-      ty: view.ty,
-    };
-  }, [view.tx, view.ty]);
+  const onPointerDown = useCallback(
+    (e: ReactPointerEvent<SVGSVGElement>) => {
+      if (e.button !== 0) return;
+      const target = e.target as Element;
+      if (target.closest("[data-node]")) return; // clicking a node, not panning
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      dragRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        tx: view.tx,
+        ty: view.ty,
+      };
+    },
+    [view.tx, view.ty]
+  );
 
   const onPointerMove = useCallback((e: ReactPointerEvent<SVGSVGElement>) => {
     if (!dragRef.current) return;
@@ -299,7 +305,12 @@ export function TreeGraph({
         const parent = layout.positions.get(child.parentId as string);
         const c = layout.positions.get(child.id);
         if (!parent || !c) return null;
-        return { id: child.id, parent, child: c, conversions: child.conversions };
+        return {
+          id: child.id,
+          parent,
+          child: c,
+          conversions: child.conversions,
+        };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
   }, [data.nodes, layout.positions]);
@@ -345,9 +356,7 @@ export function TreeGraph({
           </filter>
         </defs>
 
-        <g
-          transform={`translate(${view.tx} ${view.ty}) scale(${view.scale})`}
-        >
+        <g transform={`translate(${view.tx} ${view.ty}) scale(${view.scale})`}>
           {/* Wires (connectors) — drawn first so nodes render on top. */}
           <g className="wires">
             {links.map((l) => {
@@ -571,11 +580,7 @@ function Node({
 
       {/* Inner small hex for the root (visual signature) */}
       {node.level === 0 && (
-        <path
-          d={hexPath(size * 0.5)}
-          fill="var(--ink)"
-          fillOpacity="0.85"
-        />
+        <path d={hexPath(size * 0.5)} fill="var(--ink)" fillOpacity="0.85" />
       )}
 
       {/* Level marker inside hex */}
@@ -602,7 +607,12 @@ function Node({
       {/* Conversion badge — top-right counter when there are conversions */}
       {node.conversions > 0 && node.author !== "agent" && node.level !== 0 && (
         <g transform={`translate(${size * 0.85} ${-size * 0.85})`}>
-          <circle r={8} fill="var(--ink)" stroke="var(--sting)" strokeWidth={1} />
+          <circle
+            r={8}
+            fill="var(--ink)"
+            stroke="var(--sting)"
+            strokeWidth={1}
+          />
           <text
             textAnchor="middle"
             dominantBaseline="central"

@@ -22,6 +22,6 @@ export function loadConfig(): Config {
     programId: required('PROGRAM_ID'),
     oracleKeypairPath: process.env.ORACLE_KEYPAIR_PATH ?? './oracle.json',
     databaseUrl: required('DATABASE_URL'),
-    healthzPort: Number(process.env.HEALTHZ_PORT ?? 3002),
+    healthzPort: Number(process.env.HEALTHZ_PORT ?? 3403),
   }
 }

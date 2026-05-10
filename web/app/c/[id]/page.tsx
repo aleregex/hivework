@@ -4,8 +4,9 @@ import { ArrowLeft, Zap } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { TreeView } from "@/components/tree/tree-view";
 import { YourEarningsStrip } from "@/components/tree/your-earnings-strip";
-import { MOCK_CAMPAIGNS } from "@/lib/mocks/campaigns";
-import { MOCK_TREE } from "@/lib/mocks/tree";
+import { apiFetch, ApiError } from "@/lib/api/client";
+import { adaptCampaign, adaptTree } from "@/lib/api/adapters";
+import type { ApiCampaignDetail } from "@/lib/api/types";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -13,18 +14,26 @@ type PageProps = {
 
 export default async function CampaignDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const campaign = MOCK_CAMPAIGNS.find((c) => c.id === id);
-  if (!campaign) notFound();
+
+  let detail: ApiCampaignDetail;
+  try {
+    detail = await apiFetch<ApiCampaignDetail>(
+      `/campaigns/${encodeURIComponent(id)}`
+    );
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
+  }
+
+  const campaign = adaptCampaign(detail.campaign);
+  const tree = adaptTree(detail);
 
   const progress = Math.round((campaign.spentUsdc / campaign.poolUsdc) * 100);
-  const totalNodes = MOCK_TREE.filter(
-    (n) => n.level >= 1 && n.level <= 3
-  ).length;
-  const totalPosts = MOCK_TREE.filter((n) => n.level === 4).length;
-  const totalConversions = MOCK_TREE.filter((n) => n.level === 4).reduce(
-    (sum, n) => sum + n.conversions,
-    0
-  );
+  const totalNodes = tree.filter((n) => n.level >= 1 && n.level <= 3).length;
+  const totalPosts = tree.filter((n) => n.level === 4).length;
+  const totalConversions = tree
+    .filter((n) => n.level === 4)
+    .reduce((sum, n) => sum + n.conversions, 0);
   const closesInDays = Math.floor(campaign.hoursLeft / 24);
   const closesInHours = campaign.hoursLeft % 24;
 
@@ -82,9 +91,7 @@ export default async function CampaignDetailPage({ params }: PageProps) {
           <div className="flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
             <span>
               pool{" "}
-              <span className="tabular text-honey">
-                ${campaign.spentUsdc}
-              </span>
+              <span className="tabular text-honey">${campaign.spentUsdc}</span>
               <span className="text-faint"> / </span>
               <span className="tabular text-foreground">
                 ${campaign.poolUsdc}
@@ -123,7 +130,7 @@ export default async function CampaignDetailPage({ params }: PageProps) {
 
       {/* Tree */}
       <div className="mt-4">
-        <TreeView initialNodes={MOCK_TREE} campaignId={campaign.id} />
+        <TreeView initialNodes={tree} campaignId={campaign.id} />
       </div>
     </AppShell>
   );

@@ -14,8 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { MOCK_CAMPAIGNS } from "@/lib/mocks/campaigns";
-import { getNodesByLevel } from "@/lib/mocks/tree";
+import { useCampaign } from "@/lib/api/hooks";
+import { adaptCampaign, adaptTree } from "@/lib/api/adapters";
 
 const STAKE_BY_LEVEL: Record<number, number> = {
   1: 1.0,
@@ -47,7 +47,9 @@ type PageProps = {
 export default function ContributePage({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
-  const campaign = MOCK_CAMPAIGNS.find((c) => c.id === id);
+  const { data: detail } = useCampaign(id);
+  const campaign = detail ? adaptCampaign(detail.campaign) : undefined;
+  const tree = detail ? adaptTree(detail) : [];
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -140,13 +142,15 @@ export default function ContributePage({ params }: PageProps) {
                     {...form.register("parentId")}
                   >
                     <option value="root">root · campaign</option>
-                    {getNodesByLevel((watchedLevel - 1) as 1 | 2 | 3).map(
-                      (n) => (
+                    {tree
+                      .filter(
+                        (n) => n.level === ((watchedLevel - 1) as 1 | 2 | 3)
+                      )
+                      .map((n) => (
                         <option key={n.id} value={n.id}>
                           {n.title}
                         </option>
-                      )
-                    )}
+                      ))}
                   </select>
                 </div>
               </div>

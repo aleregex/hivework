@@ -47,8 +47,8 @@
   --error-rgb: 248 113 113;
 
   --radius: 0.5rem;
-  --font-display: var(--font-display-stack), ui-serif, "Iowan Old Style",
-    Georgia, serif;
+  --font-display:
+    var(--font-display-stack), ui-serif, "Iowan Old Style", Georgia, serif;
   --font-sans: var(--font-sans-stack), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono-stack), ui-monospace, monospace;
 
@@ -176,7 +176,9 @@
     font-family: var(--font-display);
     font-weight: 600;
     letter-spacing: -0.018em;
-    font-variation-settings: "opsz" 144, "SOFT" 50;
+    font-variation-settings:
+      "opsz" 144,
+      "SOFT" 50;
   }
   h4,
   h5,
@@ -184,12 +186,16 @@
     font-family: var(--font-display);
     font-weight: 600;
     letter-spacing: -0.012em;
-    font-variation-settings: "opsz" 36, "SOFT" 50;
+    font-variation-settings:
+      "opsz" 36,
+      "SOFT" 50;
   }
   /* Display class for any oversized headline — pushes opsz higher. */
   .font-display {
     font-family: var(--font-display);
-    font-variation-settings: "opsz" 144, "SOFT" 50;
+    font-variation-settings:
+      "opsz" 144,
+      "SOFT" 50;
   }
 
   /* Mono — tabular numbers + slashed zero for code clarity */
@@ -199,7 +205,9 @@
   kbd,
   samp {
     font-weight: 500;
-    font-feature-settings: "zero" on, "ss01" on;
+    font-feature-settings:
+      "zero" on,
+      "ss01" on;
     letter-spacing: 0;
   }
 
