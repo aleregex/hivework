@@ -124,25 +124,9 @@ A leaf is a real published post. Each leaf carries its genealogical path `[L1, L
 
 > **What this diagram shows:** the full life of a Hivework campaign, from the brand locking USDC in escrow on the left, through humans and AI agents adding nodes and publishing leaves, to the final cascade of payouts on the right. Yellow node = the start (escrow funded). Orange nodes = the close-and-distribute phase (the wow moment of the demo).
 
-```mermaid
-flowchart LR
-    A([Brand creates campaign<br/>+ USDC escrow]) --> B([Tree starts empty])
-    B --> C{Contributors<br/>add nodes}
-    C -->|Human| D[Stake SOL · L1/L2/L3]
-    C -->|AI agent via MCP| D
-    D --> E([Creators publish<br/>leaves with referral links])
-    E --> F([Buyers convert through links])
-    F --> G([Oracle verifies & signs<br/>register_conversion])
-    G --> H{Campaign<br/>still open?}
-    H -->|yes| C
-    H -->|no, deadline hit| I([close_and_distribute])
-    I --> J([USDC cascade animation<br/>payouts to every ancestor])
-    I --> K([Forfeited stakes<br/>redistribute to winners])
-
-    style A fill:#F5C518,stroke:#0A0A0A,color:#0A0A0A
-    style I fill:#FF6B35,stroke:#0A0A0A,color:#fff
-    style J fill:#FF6B35,stroke:#0A0A0A,color:#fff
-```
+<p align="center">
+  <img src="web/public/mermaid/High-level-lifecycle.png" alt="High-level lifecycle of a Hivework campaign" width="900" />
+</p>
 
 > **Read this as:** brands fund once → contributors (human + AI) compound work → buyers convert → contract distributes. The loop between `Contributors add nodes` and `Buyers convert` is the engine — it can iterate hundreds of times during a single campaign.
 
@@ -150,28 +134,9 @@ flowchart LR
 
 > **What this diagram shows:** the exact 9-step sequence triggered when one buyer clicks a referral link and completes a purchase. Read top-to-bottom. The buyer never touches the chain directly — the oracle is the only signer of `register_conversion`, which is what guarantees attribution can't be forged by participants.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as Buyer
-    participant W as Web (frontend)
-    participant API as api/ (Fastify)
-    participant ORC as Oracle service
-    participant PRG as Solana program
-    participant IDX as Indexer
-
-    U->>W: Click short-link /r/{ref_code}
-    W->>API: GET /r/{ref_code} (track click)
-    API-->>U: 302 → brand storefront
-    U->>API: Complete purchase (demo /buy page)
-    API->>ORC: POST /webhook/conversion {leaf, value, ip, ...}
-    ORC->>ORC: anti-fraud filters<br/>(pubkey, IP rate, wallet timing)
-    ORC->>PRG: register_conversion (signed by oracle_authority)
-    PRG-->>PRG: emit ConversionRegistered
-    PRG-->>IDX: log event
-    IDX->>API: update Postgres + push SSE
-    API-->>W: live update (tree branch lights up)
-```
+<p align="center">
+  <img src="web/public/mermaid/What%20happens%20on%20a%20single%20conversion%20(sequence).png" alt="Sequence diagram: what happens on a single conversion" width="900" />
+</p>
 
 > **Read this as:** click → off-chain anti-fraud → oracle signs on-chain tx → indexer streams the event back → frontend animates the tree. Anti-fraud lives off-chain (cheap, fast, can be iterated); attribution lives on-chain (costly to forge, auditable forever).
 
@@ -179,23 +144,9 @@ sequenceDiagram
 
 > **What this diagram shows:** the four phases a contributor (human or AI agent) goes through, with satisfaction scores per step on a 1–5 scale. The crucial property: humans and agents share **the same path** — they both score 5 on "earn" because the protocol does not distinguish between them.
 
-```mermaid
-journey
-    title What a contributor experiences
-    section Discover
-      Browse active campaigns: 4: Human, Agent
-      Pick a tree to contribute to: 5: Human, Agent
-    section Contribute
-      Create L1/L2/L3 node + stake SOL: 3: Human, Agent
-      See node appear on the tree: 5: Human, Agent
-    section Publish
-      Combine path → publish leaf: 4: Human
-      Get unique referral short-link: 5: Human
-    section Earn
-      Buyers convert through your link: 5: Human, Agent
-      Auto-credited proportionally: 5: Human, Agent
-      Claim USDC at campaign close: 5: Human, Agent
-```
+<p align="center">
+  <img src="web/public/mermaid/A%20creator's%20journey%20on%20Hivework.png" alt="A creator's journey on Hivework" width="900" />
+</p>
 
 > **Read this as:** the friction is intentional only at "stake SOL" (score 3) — that is the anti-spam gate. Every other step is high-satisfaction by design.
 
@@ -207,55 +158,9 @@ Hivework is **hybrid by design**. Anything monetary or irreversible lives on-cha
 
 > **What this diagram shows:** the five layers of the system and how data flows between them. Users (top) talk to either the web frontend or to AI-agent rails. Everything funnels through the backend (`api/`) into the oracle, which is the only service holding a key authorized to call `register_conversion` on the Solana program (bottom). Purple = on-chain. Yellow = USDC escrow. Orange = the MCP server that makes AI agents first-class.
 
-```mermaid
-flowchart TB
-    subgraph Users
-        BR[Brand wallet]
-        HC[Human creator]
-        AG[AI agent wallet]
-        BY[Buyer]
-    end
-
-    subgraph Frontend
-        WEB[web/<br/>Next.js 15 + Tailwind<br/>+ @solana/kit<br/>D3 tree visualization]
-    end
-
-    subgraph AgentRails["AI agent rails"]
-        MCP[mcp/<br/>MCP server<br/>6 tools, non-custodial]
-        AGT[agent/<br/>Reference agent &quot;Apis&quot;]
-    end
-
-    subgraph Backend
-        API[api/<br/>Fastify + Prisma<br/>Postgres on Neon]
-        IDX[indexer/<br/>Subscribes to program logs]
-        ORC[Contract/oracle/<br/>Express + anti-fraud]
-    end
-
-    subgraph Chain["Solana devnet"]
-        PRG[Anchor program<br/>8wsa...Ybz8]
-        ESC[(USDC escrow PDA)]
-        STK[(SOL stakes)]
-    end
-
-    BR --> WEB
-    HC --> WEB
-    BY --> WEB
-    AG --> AGT
-    AGT --> MCP
-    MCP --> API
-    WEB --> API
-    API --> ORC
-    ORC --> PRG
-    PRG --> ESC
-    PRG --> STK
-    PRG -- events --> IDX
-    IDX --> API
-    API -- SSE --> WEB
-
-    style PRG fill:#9945FF,stroke:#0A0A0A,color:#fff
-    style ESC fill:#F5C518,stroke:#0A0A0A,color:#0A0A0A
-    style MCP fill:#FF6B35,stroke:#0A0A0A,color:#fff
-```
+<p align="center">
+  <img src="web/public/mermaid/System%20architecture.png" alt="System architecture: 5 layers from users to Solana devnet" width="900" />
+</p>
 
 > **Read this as:** the only privileged path to the chain is `Oracle → Program`. The MCP server is non-custodial — it returns unsigned transactions for the agent to sign with its own keypair, so we never hold agent funds. The indexer makes the chain readable in real time without forcing the frontend to poll RPC.
 
@@ -276,53 +181,9 @@ flowchart TB
 
 > **What this diagram shows:** the four PDA account types stored on Solana and how they relate. A `Campaign` owns many `Node`s and `Leaf`s; nodes can fork into other nodes (self-referencing); each `Leaf` references exactly three nodes (its `[L1, L2, L3]` genealogical path), and every `Conversion` is bound to a single `Leaf`. The cardinalities here are what enables the proportional payout — given any `Conversion`, the program can walk back to the four ancestors that earned a share.
 
-```mermaid
-erDiagram
-    CAMPAIGN ||--o{ NODE : contains
-    CAMPAIGN ||--o{ LEAF : contains
-    CAMPAIGN ||--o{ CONVERSION : registers
-    NODE     ||--o{ NODE : "parent_of (forks)"
-    LEAF     }o--|| NODE : "L1, L2, L3 path"
-    LEAF     ||--o{ CONVERSION : "ref_code"
-
-    CAMPAIGN {
-        u32 id
-        Pubkey authority
-        Pubkey usdc_mint
-        Pubkey oracle_authority
-        u64 total_usdc
-        i64 deadline
-        u8 alpha
-        u8 beta
-        u8 gamma
-        u64 forfeited_pool
-    }
-    NODE {
-        Pubkey campaign
-        Pubkey creator
-        u8 level
-        bytes_32 metadata_hash
-        u32 bytes_metadata
-        u64 stake_locked
-        u32 fork_count
-        u32 conversions_count
-    }
-    LEAF {
-        Pubkey campaign
-        Pubkey creator
-        bytes_8 ref_code
-        Pubkey[3] genealogical_path
-        u64 stake_locked
-        u32 conversions_count
-        u64 pending_usdc
-    }
-    CONVERSION {
-        Pubkey campaign
-        Pubkey leaf
-        u64 value
-        i64 timestamp
-    }
-```
+<p align="center">
+  <img src="web/public/mermaid/On-chain%20data%20model.png" alt="On-chain data model: Campaign, Node, Leaf, Conversion PDAs" width="900" />
+</p>
 
 > **Read this as:** four account types, all PDAs, all derivable off-chain so the indexer and frontend can compute addresses without RPC calls. `metadata_hash` on Node is SHA-256 of the canonical JSON — the actual metadata lives off-chain in Postgres but is tamper-evident on-chain.
 
@@ -375,23 +236,9 @@ weight(node) = α · ln(descendant_forks + 1)        ← popularity
 
 > **What this diagram shows:** a worked example of how 10 USDC from one verified sale gets split. Yellow = the incoming conversion. Grey = the 5% protocol fee skimmed first. Orange = the leaf creator, who receives both their formula share AND the 30% bonus on top. The remaining 9.50 USDC ("Distributable") is what gets weighted-split among the four ancestors (L1 + L2 + L3 + Leaf) using the α/β/γ formula above.
 
-```mermaid
-flowchart LR
-    CONV[Conversion: 10 USDC]
-    CONV --> FEE[Platform fee: 5%<br/>0.50 USDC]
-    CONV --> POOL[Distributable: 9.50 USDC]
-    POOL --> BONUS[Leaf bonus: 30% of leaf share]
-    POOL --> SPLIT[Weighted split among<br/>L1, L2, L3, Leaf]
-    SPLIT --> N1[L1 contributor]
-    SPLIT --> N2[L2 contributor]
-    SPLIT --> N3[L3 contributor]
-    SPLIT --> NL[Leaf creator]
-    BONUS --> NL
-
-    style CONV fill:#F5C518,stroke:#0A0A0A,color:#0A0A0A
-    style FEE fill:#888,stroke:#0A0A0A,color:#fff
-    style NL fill:#FF6B35,stroke:#0A0A0A,color:#fff
-```
+<p align="center">
+  <img src="web/public/mermaid/Distribution%20of%20a%20single%20conversion%20(visual).png" alt="Distribution of a single 10 USDC conversion" width="900" />
+</p>
 
 > **Read this as:** of every $1 in conversions, $0.05 is protocol revenue, $0.95 reaches contributors. The leaf creator is the only role that earns from two arrows (their formula share + the bonus) — that asymmetry is intentional, because publishing is the riskiest step.
 
@@ -585,30 +432,55 @@ _Optional integrations available depending on time:_
 
 ## Roadmap
 
-> **What this diagram shows:** the four-phase build plan after this hackathon. MVP (this submission) is already shipped. V1 hardens fraud and analytics for real brand pilots. V2 expands reach (multi-chain, mobile, public data API). V3 turns the protocol into a financial primitive — lending against expected payouts and tokenizing nodes as licensable IP.
+A four-phase plan. Each phase is **gated on the previous one's traction signal** — this is a sequenced bet, not a wishlist.
 
-```mermaid
-gantt
-    dateFormat  YYYY-MM
-    title Hivework roadmap
-    section MVP
-    Devnet contract + tree + MCP + AI agent + cascade   :done, m1, 2026-05, 1d
-    section V1 (1–3 months)
-    Sybil-resistant anti-fraud         :v1a, 2026-06, 30d
-    Brand analytics dashboard          :v1b, after v1a, 30d
-    Node marketplace + multi-conv types:v1c, after v1b, 30d
-    section V2 (3–6 months)
-    LI.FI multi-chain payouts          :v2a, after v1c, 45d
-    On-chain creator reputation        :v2b, after v2a, 30d
-    Public &quot;what converts&quot; data API     :v2c, after v2b, 30d
-    Solana Mobile native app           :v2d, after v2c, 30d
-    section V3 (6–12 months)
-    Lending vs expected payouts        :v3a, after v2d, 60d
-    NFT-licensable nodes               :v3b, after v3a, 60d
-    Agent factories                    :v3c, after v3b, 60d
-```
+### ✅ Phase 0 — MVP (shipped, May 2026)
 
-> **Read this as:** each phase is gated on the previous one's traction signal — V1 ships only if pilots validate the formula, V2 ships only if creator retention proves the moat, V3 only after enough on-chain history exists to lend against. Not a wishlist; a sequenced bet.
+What's in production on devnet **today**:
+
+- Anchor program with 10 instructions, 5 events, 16 typed errors
+- USDC escrow + SOL stakes + proportional payout formula on-chain
+- Oracle service with anti-fraud filters (pubkey, IP rate-limit, wallet timing)
+- Backend (Fastify + Postgres) with metadata indexer and short-link service
+- MCP server exposing 6 tools so AI agents can participate non-custodially
+- Reference AI agent ("Apis") that creates nodes during the live demo
+- Next.js frontend with D3 tree visualization and USDC cascade animation
+
+**Gate to V1:** at least one paying brand pilot validates that the proportional formula maps to perceived contribution fairness.
+
+### 🟡 Phase 1 — Pilot-ready (months 1–3)
+
+Hardening for real money on mainnet.
+
+- **Sybil-resistant anti-fraud** — wallet age requirements, on-chain activity scoring, automated flag review.
+- **Brand analytics dashboard** — what decisions converted, broken down by demographic, time of day, platform.
+- **Node marketplace** — successful nodes from past campaigns become reusable, with royalties to original creators.
+- **Multi-conversion types** — beyond purchases: signups, mints, donations, subscriptions.
+
+**Gate to V2:** ≥30% creator retention across campaigns proves the moat is real.
+
+### 🟢 Phase 2 — Reach (months 3–6)
+
+Expanding the surface area.
+
+- **LI.FI multi-chain payouts** — creators on Ethereum, Base, Arbitrum can receive USDC without bridging manually.
+- **On-chain creator reputation** — portable identity tied to historical conversion performance.
+- **Public "what converts" data API** — paid API exposing aggregate insights (which hooks work in which nichés). Becomes a revenue stream of its own.
+- **TikTok / Meta Ads auto-tracking** — direct integration so leaves don't need manual click tracking.
+- **Solana Mobile native app** — dApp Store submission targeting creators on the go.
+
+**Gate to V3:** enough on-chain payout history accumulates to underwrite credit.
+
+### 🔵 Phase 3 — Financial primitive (months 6–12)
+
+Hivework becomes infrastructure other protocols compose against.
+
+- **Lending against expected payouts** — creators with strong track record can borrow USDC against forecast earnings from active campaigns.
+- **NFT-licensable nodes** — the most successful "decision genes" become tokenized IP that other campaigns can license.
+- **Agent factories** — anyone can launch a specialized agent (e.g., "Spanish-language hooks for LATAM e-commerce") that generates nodes on Hivework autonomously.
+- **Generative content integrations** — Sora, Runway, ElevenLabs plug in so the leaf creation step is near-automatic.
+
+---
 
 Full long-form spec in [`docs/proyecto.md`](./docs/proyecto.md).
 
