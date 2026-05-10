@@ -21,7 +21,7 @@ Cada grupo declara sus wallets aquí. Quien necesite SOL/USDC pre-fundeado se lo
 
 | Rol | Pubkey | Notas |
 |-----|--------|-------|
-| Deploy authority | `[completar]` | Quien deploy el programa |
+| Deploy authority | `4UQ9JiFa52n3YMUE6gHEBRSqpxJ9Y6shyTF7mZocLJpW` | Quien deployó el programa (3.17 SOL disponibles) |
 | Oracle keypair | `FkSMCtbcPdeNJLSnzMxWn8biR1fPyUF1wqLHhwGNdoEU` | Pubkey autorizada en el contrato para firmar conversiones |
 
 ### Wallets del Grupo B (backend + agente AI)
@@ -71,7 +71,7 @@ Quien fondea: el Grupo A vía `solana airdrop` y el faucet de USDC mock del scaf
 
 Cada grupo debe documentar las suyas en su sub-proyecto. Las que TODOS deben conocer:
 
-- `NEXT_PUBLIC_PROGRAM_ID` — pubkey del programa Anchor (lo da Grupo A al deploy)
+- `NEXT_PUBLIC_PROGRAM_ID` — `8wsaheyJ3e1e8zRUFX22apjvutNcaEagTyk21N75Ybz8` (deployado en devnet)
 - `NEXT_PUBLIC_API_URL` — URL del backend (lo da Grupo B al deploy)
 - `NEXT_PUBLIC_RPC_ENDPOINT` — RPC de Solana
 - `ORACLE_PRIVATE_KEY` — solo Grupo A, en su servicio de oracle

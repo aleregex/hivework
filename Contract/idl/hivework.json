@@ -1,0 +1,934 @@
+{
+  "address": "8wsaheyJ3e1e8zRUFX22apjvutNcaEagTyk21N75Ybz8",
+  "metadata": {
+    "name": "hivework",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "claim_leaf_payout",
+      "discriminator": [
+        126,
+        216,
+        47,
+        45,
+        217,
+        148,
+        81,
+        20
+      ],
+      "accounts": [
+        {
+          "name": "leaf",
+          "writable": true
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "leaf"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_payout",
+      "discriminator": [
+        127,
+        240,
+        132,
+        62,
+        227,
+        198,
+        146,
+        133
+      ],
+      "accounts": [
+        {
+          "name": "node",
+          "writable": true
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "node"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_and_distribute",
+      "discriminator": [
+        31,
+        38,
+        203,
+        96,
+        226,
+        154,
+        175,
+        250
+      ],
+      "accounts": [
+        {
+          "name": "campaign",
+          "writable": true
+        },
+        {
+          "name": "conversion",
+          "writable": true
+        },
+        {
+          "name": "leaf",
+          "writable": true
+        },
+        {
+          "name": "node_l1",
+          "writable": true
+        },
+        {
+          "name": "node_l2",
+          "writable": true
+        },
+        {
+          "name": "node_l3",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_campaign",
+      "discriminator": [
+        111,
+        131,
+        187,
+        98,
+        160,
+        193,
+        114,
+        244
+      ],
+      "accounts": [
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "arg",
+                "path": "campaign_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "escrow_usdc"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "deadline",
+          "type": "i64"
+        },
+        {
+          "name": "alpha_weight",
+          "type": "u8"
+        },
+        {
+          "name": "beta_weight",
+          "type": "u8"
+        },
+        {
+          "name": "gamma_weight",
+          "type": "u8"
+        },
+        {
+          "name": "_campaign_id",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "create_leaf",
+      "discriminator": [
+        200,
+        247,
+        198,
+        94,
+        246,
+        189,
+        154,
+        27
+      ],
+      "accounts": [
+        {
+          "name": "leaf",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  101,
+                  97,
+                  102
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "arg",
+                "path": "ref_code"
+              }
+            ]
+          }
+        },
+        {
+          "name": "campaign"
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "parent_node",
+          "writable": true
+        },
+        {
+          "name": "node_l1"
+        },
+        {
+          "name": "node_l2"
+        },
+        {
+          "name": "node_l3"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "ref_code",
+          "type": {
+            "array": [
+              "u8",
+              8
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_node",
+      "discriminator": [
+        20,
+        183,
+        134,
+        233,
+        51,
+        51,
+        115,
+        83
+      ],
+      "accounts": [
+        {
+          "name": "node",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "account",
+                "path": "creator"
+              },
+              {
+                "kind": "arg",
+                "path": "metadata_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "campaign"
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "parent_node",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "level",
+          "type": "u8"
+        },
+        {
+          "name": "metadata_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "register_conversion",
+      "discriminator": [
+        195,
+        124,
+        51,
+        249,
+        10,
+        190,
+        194,
+        248
+      ],
+      "accounts": [
+        {
+          "name": "conversion",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "account",
+                "path": "leaf"
+              },
+              {
+                "kind": "arg",
+                "path": "conversion_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "campaign"
+        },
+        {
+          "name": "leaf",
+          "writable": true
+        },
+        {
+          "name": "node_l1",
+          "writable": true
+        },
+        {
+          "name": "node_l2",
+          "writable": true
+        },
+        {
+          "name": "node_l3",
+          "writable": true
+        },
+        {
+          "name": "oracle",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "conversion_id",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        },
+        {
+          "name": "value",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Campaign",
+      "discriminator": [
+        50,
+        40,
+        49,
+        11,
+        157,
+        220,
+        229,
+        192
+      ]
+    },
+    {
+      "name": "Conversion",
+      "discriminator": [
+        166,
+        162,
+        161,
+        65,
+        158,
+        55,
+        109,
+        27
+      ]
+    },
+    {
+      "name": "Leaf",
+      "discriminator": [
+        147,
+        33,
+        238,
+        42,
+        60,
+        234,
+        134,
+        10
+      ]
+    },
+    {
+      "name": "Node",
+      "discriminator": [
+        208,
+        53,
+        1,
+        3,
+        49,
+        122,
+        180,
+        49
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "CampaignClosed",
+      "discriminator": [
+        158,
+        143,
+        128,
+        251,
+        84,
+        131,
+        2,
+        90
+      ]
+    },
+    {
+      "name": "CampaignCreated",
+      "discriminator": [
+        9,
+        98,
+        69,
+        61,
+        53,
+        131,
+        64,
+        152
+      ]
+    },
+    {
+      "name": "ConversionRegistered",
+      "discriminator": [
+        115,
+        6,
+        64,
+        83,
+        243,
+        211,
+        158,
+        94
+      ]
+    },
+    {
+      "name": "LeafCreated",
+      "discriminator": [
+        104,
+        203,
+        138,
+        53,
+        182,
+        154,
+        232,
+        130
+      ]
+    },
+    {
+      "name": "NodeCreated",
+      "discriminator": [
+        100,
+        252,
+        30,
+        133,
+        157,
+        222,
+        127,
+        208
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "CampaignClosed",
+      "msg": "Campaña ya ha cerrado"
+    },
+    {
+      "code": 6001,
+      "name": "CampaignNotClosed",
+      "msg": "Campaña aún no ha cerrado"
+    },
+    {
+      "code": 6002,
+      "name": "UnauthorizedOracle",
+      "msg": "Firma de oracle inválida o no autorizada"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidLevel",
+      "msg": "El nivel del nodo debe ser 1, 2 o 3"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidParentNode",
+      "msg": "Nodo padre inválido para el nivel especificado"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidGenealogicalPath",
+      "msg": "El path genealógico de la hoja es incorrecto"
+    },
+    {
+      "code": 6006,
+      "name": "InsufficientStake",
+      "msg": "Stake insuficiente provisto"
+    },
+    {
+      "code": 6007,
+      "name": "InsufficientFunds",
+      "msg": "No hay suficientes fondos para retirar"
+    },
+    {
+      "code": 6008,
+      "name": "MathError",
+      "msg": "Matemática falló en cálculo de payout"
+    },
+    {
+      "code": 6009,
+      "name": "ConversionAlreadyRegistered",
+      "msg": "Idempotencia: La conversión ya fue registrada"
+    },
+    {
+      "code": 6010,
+      "name": "DataTooLarge",
+      "msg": "Excede máxima longitud de bytes"
+    }
+  ],
+  "types": [
+    {
+      "name": "Campaign",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "escrow_usdc",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "platform_fee",
+            "type": "u8"
+          },
+          {
+            "name": "alpha_weight",
+            "type": "u8"
+          },
+          {
+            "name": "beta_weight",
+            "type": "u8"
+          },
+          {
+            "name": "gamma_weight",
+            "type": "u8"
+          },
+          {
+            "name": "deadline",
+            "type": "i64"
+          },
+          {
+            "name": "is_closed",
+            "type": "bool"
+          },
+          {
+            "name": "conversions_processed",
+            "type": "u32"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CampaignClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "conversions_processed",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CampaignCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "deadline",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Conversion",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "leaf",
+            "type": "pubkey"
+          },
+          {
+            "name": "oracle",
+            "type": "pubkey"
+          },
+          {
+            "name": "id",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "value",
+            "type": "u64"
+          },
+          {
+            "name": "is_processed",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConversionRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "conversion",
+            "type": "pubkey"
+          },
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "leaf",
+            "type": "pubkey"
+          },
+          {
+            "name": "value",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Leaf",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "parent_node",
+            "type": "pubkey"
+          },
+          {
+            "name": "genealogical_path",
+            "type": {
+              "array": [
+                "pubkey",
+                3
+              ]
+            }
+          },
+          {
+            "name": "ref_code",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "stake_locked",
+            "type": "u64"
+          },
+          {
+            "name": "conversions_count",
+            "type": "u32"
+          },
+          {
+            "name": "claimable_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LeafCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "leaf",
+            "type": "pubkey"
+          },
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "ref_code",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Node",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "parent_node",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "metadata_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "stake_locked",
+            "type": "u64"
+          },
+          {
+            "name": "forks_count",
+            "type": "u32"
+          },
+          {
+            "name": "conversions_count",
+            "type": "u32"
+          },
+          {
+            "name": "claimable_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NodeCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "node",
+            "type": "pubkey"
+          },
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "level",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}
