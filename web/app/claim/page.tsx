@@ -115,7 +115,7 @@ export default function ClaimPage() {
                 <div className="flex items-center gap-2">
                   <Button asChild variant="ghost" size="sm">
                     <Link href={`/c/${p.campaignId}`}>
-                      Open tree
+                      View campaign
                       <ArrowRight className="h-3 w-3" />
                     </Link>
                   </Button>

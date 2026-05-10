@@ -30,20 +30,19 @@ export function ActiveCampaigns() {
       <div className="mx-auto max-w-6xl px-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex max-w-xl flex-col gap-4">
-            <SectionLabel id="§2">active hives</SectionLabel>
+            <SectionLabel id="§2">live campaigns</SectionLabel>
             <h2 className="text-balance text-4xl leading-[1.1] sm:text-5xl">
-              Live campaigns.{" "}
-              <span className="italic text-honey">Open for contribution.</span>
+              Open campaigns.{" "}
+              <span className="italic text-honey">Anyone can join.</span>
             </h2>
             <p className="text-base leading-relaxed text-fg-soft">
-              Every hive listed below has USDC locked on devnet. Add a node,
-              fork a hook, or publish a post — earn proportionally when
-              conversions land.
+              Every campaign below has real USDC locked on devnet. Add an idea,
+              remix one, or publish a post — get paid when it leads to a sale.
             </p>
           </div>
           <Button asChild variant="outline">
             <Link href="/campaigns">
-              View all
+              See all campaigns
               <ArrowUpRight className="h-4 w-4" />
             </Link>
           </Button>
@@ -128,10 +127,10 @@ export function ActiveCampaigns() {
 
                   {/* Stats grid */}
                   <div className="grid grid-cols-3 divide-x divide-line/60 rounded-md border border-line/60 bg-ink-2/40">
-                    <Stat label="nodes" value={campaign.nodes} />
+                    <Stat label="ideas" value={campaign.nodes} />
                     <Stat label="posts" value={campaign.leaves} />
                     <Stat
-                      label="conv"
+                      label="sales"
                       value={campaign.conversions}
                       accent="sting"
                     />
@@ -149,7 +148,7 @@ export function ActiveCampaigns() {
                     <Button asChild size="sm" variant="ghost">
                       <Link href={`/c/${campaign.id}`}>
                         <Network className="h-4 w-4" />
-                        Open tree
+                        View campaign
                       </Link>
                     </Button>
                   </div>

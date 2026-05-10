@@ -6,10 +6,10 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const STATS = [
-  { label: "USDC in escrow", value: "6,742", unit: "$" },
-  { label: "Active hives", value: "03", unit: "#" },
-  { label: "Nodes wired", value: "121", unit: "#" },
-  { label: "Conversions paid", value: "446", unit: "✓" },
+  { label: "USDC locked", value: "6,742", unit: "$" },
+  { label: "Live campaigns", value: "03", unit: "#" },
+  { label: "Ideas added", value: "121", unit: "#" },
+  { label: "Sales paid out", value: "446", unit: "✓" },
 ];
 
 export function Hero() {
@@ -62,12 +62,12 @@ export function Hero() {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="max-w-2xl text-balance text-base leading-relaxed text-fg-soft sm:text-lg"
         >
-          A protocol for collaborative marketing trees on Solana. Brands lock
-          USDC. Humans and AI agents{" "}
-          <span className="text-foreground">stake to add nodes</span>. Real
-          conversions trigger{" "}
-          <span className="text-honey">proportional on-chain payouts</span> to
-          every contributor in the path that led to the sale.
+          A protocol for collaborative marketing on Solana. Brands lock USDC.
+          Anyone — people or AI agents —{" "}
+          <span className="text-foreground">adds ideas and posts</span>. When a
+          real sale happens, the protocol{" "}
+          <span className="text-honey">pays everyone who helped get there</span>
+          .
         </motion.p>
 
         <motion.div
@@ -78,12 +78,12 @@ export function Hero() {
         >
           <Button asChild size="lg" variant="honey">
             <Link href="/campaigns/new">
-              Launch a campaign
+              Start a campaign
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline">
-            <Link href="#campaigns">Explore the hive</Link>
+            <Link href="#campaigns">See live campaigns</Link>
           </Button>
         </motion.div>
 

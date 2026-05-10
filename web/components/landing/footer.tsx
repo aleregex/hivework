@@ -16,10 +16,10 @@ export function Footer() {
           </div>
 
           <div className="grid grid-cols-2 gap-8 font-mono text-[12px] text-muted sm:grid-cols-3">
-            <FooterCol title="protocol">
+            <FooterCol title="product">
               <FooterLink href="#protocol">how it works</FooterLink>
-              <FooterLink href="#campaigns">active hives</FooterLink>
-              <FooterLink href="/campaigns/new">launch a campaign</FooterLink>
+              <FooterLink href="#campaigns">live campaigns</FooterLink>
+              <FooterLink href="/campaigns/new">start a campaign</FooterLink>
             </FooterCol>
             <FooterCol title="build">
               <FooterLink

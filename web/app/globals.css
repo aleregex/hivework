@@ -1,47 +1,50 @@
 @import "tailwindcss";
 
 /*
- * Hivework — Honeycomb OS
+ * Hivework — palette
  *
- *  The whole palette is honey/cream-warmth, taken straight from the logo
- *  (deep honey center hex + lighter satellite hexes on parchment). No cool
- *  grays anywhere — every neutral is warm-tinted so the page reads like
- *  honeycomb regardless of which surface you're on.
+ *  Dark theme = real black + neutral grays (NOT warm-brown). The earlier
+ *  honey-tinted neutrals made every surface read as muddy brown; users
+ *  asked for a clean black background where the honey accent can actually
+ *  pop. Honey is reserved for accents (CTAs, highlights, the brand mark)
+ *  rather than every wall.
  *
- *  Default = dark warm. Light theme = parchment cream.
+ *  Light theme = clean white with the same neutral grays.
  */
 
 :root {
-  /* Backgrounds — warm dark, never neutral charcoal */
-  --ink: #1a130a;
-  --ink-2: #221808;
-  --surface: #2a1f10;
-  --surface-2: #34270f;
+  /* Backgrounds — true black + neutral charcoals (zinc-like) */
+  --ink: #0a0a0a;
+  --ink-2: #111111;
+  --surface: #171717;
+  --surface-2: #1f1f1f;
 
-  /* Borders — warm tan */
-  --line: #3f2f15;
-  --line-strong: #553f1c;
+  /* Borders — neutral gray, no warm tint */
+  --line: #262626;
+  --line-strong: #3a3a3a;
 
-  /* Text — cream on dark */
-  --fg: #fbf1dc;
-  --fg-soft: #d4bd93;
-  --fg-muted: #a78a64;
-  --fg-faint: #6e5c44;
+  /* Text — neutral whites on black for crisp contrast */
+  --fg: #fafafa;
+  --fg-soft: #d4d4d4;
+  --fg-muted: #a1a1aa;
+  --fg-faint: #6b7280;
 
-  /* Honey — vibrant, takes the central place. Calibrated against the logo. */
+  /* Honey — the one accent. Stays vibrant against neutral surroundings. */
   --honey: #f2a526;
   --honey-soft: #ffc865;
   --honey-deep: #c77f12;
 
   /* Semantic signals */
-  --sting: #ff6b35;
+  --sting: #ff6b35; /* "money in" accent for conversions, NOT for errors */
   --live: #4ed188;
-  --destructive: #ef4444;
+  --destructive: #f87171; /* form errors — softer red, easier on the eyes than #ef4444 against pure black */
+  --error: #f87171;
 
   /* RGBs for rgb() var() interpolation */
   --honey-rgb: 242 165 38;
   --sting-rgb: 255 107 53;
   --live-rgb: 78 209 136;
+  --error-rgb: 248 113 113;
 
   --radius: 0.5rem;
   --font-display: var(--font-display-stack), ui-serif, "Iowan Old Style",
@@ -78,10 +81,13 @@
 
   --sting: #c4441a;
   --live: #15894c;
+  --destructive: #dc2626; /* errors — stronger red on white */
+  --error: #dc2626;
 
   --honey-rgb: 199 127 18;
   --sting-rgb: 196 68 26;
   --live-rgb: 21 137 76;
+  --error-rgb: 220 38 38;
 
   color-scheme: light;
 }
@@ -129,6 +135,7 @@
   --color-accent: var(--sting);
   --color-accent-foreground: var(--fg);
   --color-destructive: var(--destructive);
+  --color-error: var(--error);
 
   --font-display: var(--font-display);
   --font-sans: var(--font-sans);
@@ -211,7 +218,9 @@
 /* ------------------------------------------------------------------ */
 .bg-hex-grid {
   background-color: var(--ink);
-  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52' fill='none' stroke='%23f2a526' stroke-opacity='0.10' stroke-width='1'%3E%3Cpath d='M15 1 L29 9 L29 25 L15 33 L1 25 L1 9 Z'/%3E%3Cpath d='M45 -25 L59 -17 L59 -1 L45 7 L31 -1 L31 -17 Z'/%3E%3Cpath d='M45 27 L59 35 L59 51 L45 59 L31 51 L31 35 Z'/%3E%3C/svg%3E");
+  /* Lower stroke opacity now that the background is true black — the honey
+   * hexes pop much more on #0a0a0a than they did on the previous brown. */
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52' fill='none' stroke='%23f2a526' stroke-opacity='0.06' stroke-width='1'%3E%3Cpath d='M15 1 L29 9 L29 25 L15 33 L1 25 L1 9 Z'/%3E%3Cpath d='M45 -25 L59 -17 L59 -1 L45 7 L31 -1 L31 -17 Z'/%3E%3Cpath d='M45 27 L59 35 L59 51 L45 59 L31 51 L31 35 Z'/%3E%3C/svg%3E");
   background-position: 0 0;
 }
 .theme-light .bg-hex-grid {
@@ -222,7 +231,7 @@
 .bg-dot-grid {
   background-color: var(--ink-2);
   background-image: radial-gradient(
-    rgb(var(--honey-rgb) / 0.18) 1px,
+    rgb(var(--honey-rgb) / 0.12) 1px,
     transparent 1px
   );
   background-size: 22px 22px;

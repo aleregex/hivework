@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -64,7 +64,10 @@ export default function NewCampaignPage() {
       deadlineDays: 14,
       conversionCriteria: "purchase",
     },
-    mode: "onChange",
+    // onTouched: only show errors after the user has interacted with a field
+    // (blur). Avoids the "all-fields-red on first paint" problem the previous
+    // onChange mode caused when defaults were empty strings.
+    mode: "onTouched",
   });
 
   const values = watch();
@@ -103,47 +106,94 @@ export default function NewCampaignPage() {
           Back to campaigns
         </Link>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-          Launch a campaign
+          Start a campaign
         </h1>
         <p className="mt-2 text-sm text-muted">
-          Deposit USDC into escrow and publish an empty tree. You only pay when
-          real conversions happen.
+          Deposit USDC into escrow and open it for contributions. You only pay
+          when real sales happen.
         </p>
 
-        {/* Step indicator */}
-        <div className="mt-8 flex items-center gap-2">
-          {STEPS.map((label, i) => (
-            <div key={label} className="flex flex-1 items-center gap-2">
-              <div
-                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
-                  i < step
-                    ? "bg-honey text-hive"
-                    : i === step
-                      ? "bg-honey/20 text-honey ring-1 ring-honey"
-                      : "bg-wax text-muted"
-                }`}
-              >
-                {i < step ? <Check className="h-3.5 w-3.5" /> : i + 1}
-              </div>
-              {i < STEPS.length - 1 && (
+        {/* Step indicator — grid of 4 equal columns. Each column has the
+         * circle + its label, perfectly centered above each other. The
+         * connector lines run as absolute siblings between adjacent circles
+         * so the circles never get pushed off-center the way a flex-with-gap
+         * layout did. */}
+        <div className="mt-8">
+          <div
+            className="grid gap-2"
+            style={{
+              gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))`,
+            }}
+          >
+            {STEPS.map((label, i) => {
+              const done = i < step;
+              const active = i === step;
+              const prevDone = i > 0 && i - 1 < step;
+              return (
                 <div
-                  className={`h-px flex-1 ${i < step ? "bg-honey" : "bg-wax"}`}
-                />
-              )}
-            </div>
-          ))}
+                  key={label}
+                  className="relative flex flex-col items-center gap-2"
+                >
+                  {/* connector to the previous circle: from this column's
+                   * center going left to the previous column's center */}
+                  {i > 0 && (
+                    <div
+                      aria-hidden
+                      className={`absolute left-[-50%] right-1/2 top-4 h-px transition-colors ${
+                        prevDone ? "bg-honey" : "bg-line"
+                      }`}
+                    />
+                  )}
+                  <div
+                    className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+                      done
+                        ? "bg-honey text-ink"
+                        : active
+                          ? // Opaque background (matches the page bg) so the
+                            // connector line behind the row never bleeds
+                            // through the digit. The honey ring still gives
+                            // it the "active" highlight.
+                            "bg-ink ring-2 ring-honey text-honey"
+                          : "bg-ink ring-1 ring-line text-muted"
+                    }`}
+                  >
+                    {done ? <Check className="h-4 w-4" /> : i + 1}
+                  </div>
+                  <span
+                    className={`text-center text-[11px] leading-tight transition-colors ${
+                      active
+                        ? "text-foreground"
+                        : done
+                          ? "text-fg-soft"
+                          : "text-muted"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-4 text-center text-xs text-muted">
+            Step <span className="text-foreground">{step + 1}</span> of{" "}
+            {STEPS.length}
+          </p>
         </div>
-        <p className="mt-2 text-xs text-muted">
-          Step {step + 1} of {STEPS.length} — {STEPS[step]}
-        </p>
 
         <Card className="mt-6">
           <CardHeader>
             <CardTitle className="text-base">{STEPS[step]}</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* The form NEVER auto-submits. We strip the default submit
+             * behaviour (preventDefault on submit) so pressing Enter inside
+             * any input can't fire the campaign creation, and the final
+             * "Sign & deposit" button calls handleSubmit() manually from its
+             * onClick. This avoids the bug where the previous step's "Next"
+             * click was inheriting onto a freshly-rendered submit button in
+             * the same DOM slot. */}
             <form
-              onSubmit={handleSubmit(onSubmit)}
+              onSubmit={(e) => e.preventDefault()}
               className="flex flex-col gap-4"
             >
               {step === 0 && (
@@ -153,39 +203,30 @@ export default function NewCampaignPage() {
                     <Input
                       id="brand"
                       placeholder="Chasqui Coffee"
+                      aria-invalid={!!errors.brand}
                       {...register("brand")}
                     />
-                    {errors.brand && (
-                      <p className="text-xs text-sting">
-                        {errors.brand.message}
-                      </p>
-                    )}
+                    <FieldError message={errors.brand?.message} />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="product">Product description</Label>
                     <Textarea
                       id="product"
                       placeholder="Single-origin Yungas espresso · 250g bag · ships LATAM-wide"
+                      aria-invalid={!!errors.product}
                       {...register("product")}
                     />
-                    {errors.product && (
-                      <p className="text-xs text-sting">
-                        {errors.product.message}
-                      </p>
-                    )}
+                    <FieldError message={errors.product?.message} />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="storefrontUrl">Storefront URL</Label>
                     <Input
                       id="storefrontUrl"
                       placeholder="https://shop.halocola.com"
+                      aria-invalid={!!errors.storefrontUrl}
                       {...register("storefrontUrl")}
                     />
-                    {errors.storefrontUrl && (
-                      <p className="text-xs text-sting">
-                        {errors.storefrontUrl.message}
-                      </p>
-                    )}
+                    <FieldError message={errors.storefrontUrl?.message} />
                   </div>
                 </>
               )}
@@ -198,17 +239,14 @@ export default function NewCampaignPage() {
                       id="poolUsdc"
                       type="number"
                       step="50"
+                      aria-invalid={!!errors.poolUsdc}
                       {...register("poolUsdc")}
                     />
                     <p className="text-xs text-muted">
                       Minimum $50. This goes into on-chain escrow at signing
                       time.
                     </p>
-                    {errors.poolUsdc && (
-                      <p className="text-xs text-sting">
-                        {errors.poolUsdc.message}
-                      </p>
-                    )}
+                    <FieldError message={errors.poolUsdc?.message} />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="deadlineDays">Deadline (days)</Label>
@@ -217,13 +255,10 @@ export default function NewCampaignPage() {
                       type="number"
                       min={1}
                       max={60}
+                      aria-invalid={!!errors.deadlineDays}
                       {...register("deadlineDays")}
                     />
-                    {errors.deadlineDays && (
-                      <p className="text-xs text-sting">
-                        {errors.deadlineDays.message}
-                      </p>
-                    )}
+                    <FieldError message={errors.deadlineDays?.message} />
                   </div>
                 </>
               )}
@@ -256,17 +291,14 @@ export default function NewCampaignPage() {
                       id="conversionValueUsdc"
                       type="number"
                       step="0.5"
+                      aria-invalid={!!errors.conversionValueUsdc}
                       {...register("conversionValueUsdc")}
                     />
                     <p className="text-xs text-muted">
-                      This is what&apos;s distributed across all nodes in the
-                      path that led to the sale (minus 5% platform fee).
+                      This is what&apos;s distributed across everyone who
+                      contributed to the sale (minus 5% platform fee).
                     </p>
-                    {errors.conversionValueUsdc && (
-                      <p className="text-xs text-sting">
-                        {errors.conversionValueUsdc.message}
-                      </p>
-                    )}
+                    <FieldError message={errors.conversionValueUsdc?.message} />
                   </div>
                 </>
               )}
@@ -303,13 +335,27 @@ export default function NewCampaignPage() {
                 >
                   Back
                 </Button>
+                {/* Distinct keys force React to mount a brand-new <button>
+                 * when the step changes, instead of reusing the same DOM
+                 * node and silently swapping its handlers mid-click. */}
                 {step < STEPS.length - 1 ? (
-                  <Button type="button" size="sm" onClick={nextStep}>
+                  <Button
+                    key="step-next"
+                    type="button"
+                    size="sm"
+                    onClick={nextStep}
+                  >
                     Next
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 ) : (
-                  <Button type="submit" size="sm" disabled={submitting}>
+                  <Button
+                    key="step-submit"
+                    type="button"
+                    size="sm"
+                    disabled={submitting}
+                    onClick={handleSubmit(onSubmit)}
+                  >
                     {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                     {submitting ? "Signing…" : "Sign & deposit"}
                   </Button>
@@ -331,5 +377,20 @@ function Row({ label, value }: { label: string; value: string | number }) {
       </span>
       <span className="text-right text-sm">{value}</span>
     </div>
+  );
+}
+
+/**
+ * Inline form error. Renders nothing when empty (so the layout doesn't shift
+ * before the user has touched the field). Uses the semantic --error red, not
+ * the orange `sting` accent — sting means "money in" elsewhere on the page.
+ */
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p className="flex items-center gap-1.5 text-xs text-error" role="alert">
+      <AlertCircle className="h-3 w-3 shrink-0" />
+      <span>{message}</span>
+    </p>
   );
 }

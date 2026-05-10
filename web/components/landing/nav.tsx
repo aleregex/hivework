@@ -14,7 +14,7 @@ export function Nav() {
         </Link>
 
         <div className="hidden items-center gap-1 font-mono text-[12px] text-muted md:flex">
-          <NavLink href="#protocol">protocol</NavLink>
+          <NavLink href="#protocol">how it works</NavLink>
           <NavLink href="#campaigns">campaigns</NavLink>
           <NavLink
             href="https://github.com/aleregex/hivework"
@@ -29,7 +29,7 @@ export function Nav() {
             href="/campaigns/new"
             className="hidden font-mono text-[12px] text-muted transition-colors hover:text-foreground sm:inline-flex"
           >
-            <span className="text-honey">›</span>&nbsp;new campaign
+            <span className="text-honey">+</span>&nbsp;start a campaign
           </Link>
           <ThemeToggle />
           <WalletConnectButton />

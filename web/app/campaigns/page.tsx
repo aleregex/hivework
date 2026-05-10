@@ -22,22 +22,22 @@ export default function CampaignsPage() {
     <AppShell>
       <div className="flex flex-col gap-2">
         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-honey">
-          Active hives
+          Live campaigns
         </span>
         <h1 className="text-4xl font-semibold tracking-tight">All campaigns</h1>
         <p className="max-w-2xl text-muted">
-          Pick a campaign to see its tree, contribute a node or a post, and
-          start earning when conversions roll in.
+          Pick a campaign, add an idea or publish a post, and earn when your
+          contribution leads to a real sale.
         </p>
       </div>
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex items-center gap-2 rounded-md border border-wax bg-comb px-3 py-2 text-xs text-muted">
           <Filter className="h-3 w-3" />
-          Filters · all categories · sort by hot
+          Filters · all categories · sort by popular
         </div>
         <Button asChild variant="honey" size="sm">
-          <Link href="/campaigns/new">Launch your own campaign</Link>
+          <Link href="/campaigns/new">Start your own campaign</Link>
         </Button>
       </div>
 
@@ -75,12 +75,12 @@ export default function CampaignsPage() {
               </CardContent>
               <CardFooter className="mt-auto justify-between border-t border-wax/60 pt-4">
                 <span className="text-xs text-muted">
-                  {c.nodes} nodes · {c.leaves} posts ·{" "}
-                  <span className="text-sting">{c.conversions} conv.</span>
+                  {c.nodes} ideas · {c.leaves} posts ·{" "}
+                  <span className="text-sting">{c.conversions} sales</span>
                 </span>
                 <Button asChild size="sm" variant="ghost">
                   <Link href={`/c/${c.id}`}>
-                    Open
+                    View campaign
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
