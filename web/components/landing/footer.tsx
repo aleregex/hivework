@@ -40,7 +40,7 @@ export function Footer() {
 
         <div className="mt-12 flex flex-col gap-2 border-t border-line pt-6 font-mono text-[11px] text-faint sm:flex-row sm:items-center sm:justify-between">
           <span>
-            <span className="text-muted">© 2026</span> hivework{" "}
+            <span className="text-muted">© 2026</span> Hivework{" "}
             <span className="text-line-strong">·</span> built on solana ·
             devnet preview
           </span>

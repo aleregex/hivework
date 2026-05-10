@@ -93,7 +93,7 @@ export function DemoControlPanel({
                 onClick={onPublishLeaf}
                 disabled={disabled}
                 icon={<Sparkles className="h-3.5 w-3.5 text-honey" />}
-                label="Publish leaf as @teammate"
+                label="Publish post as @teammate"
                 hint="Composes a path + emits a ref-link"
               />
 
@@ -103,7 +103,7 @@ export function DemoControlPanel({
                 disabled={disabled}
                 icon={<Zap className="h-3.5 w-3.5 text-sting" />}
                 label="Fire +1 conversion"
-                hint="Picks a hot leaf, lights up the path"
+                hint="Picks a hot post, lights up the path"
               />
               <Action
                 onClick={() => onFireConversionBurst(5)}

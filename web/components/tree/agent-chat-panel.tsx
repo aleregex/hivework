@@ -279,7 +279,7 @@ function respondTo(text: string): Message[] {
     audioId: "a3",
     visualId: "v3",
     reason:
-      "This composition has the highest realized payout right now ($86 across 25 conversions). The trending audio expires in ~6 days, but in the next 48h it's the highest expected $/leaf.",
+      "This composition has the highest realized payout right now ($86 across 25 conversions). The trending audio expires in ~6 days, but in the next 48h it's the highest expected $/post.",
   };
 
   // Path B — emotional path (h1 → a1 → v1)

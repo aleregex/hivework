@@ -44,28 +44,34 @@
   --live-rgb: 78 209 136;
 
   --radius: 0.5rem;
+  --font-display: var(--font-display-stack), ui-serif, "Iowan Old Style",
+    Georgia, serif;
   --font-sans: var(--font-sans-stack), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono-stack), ui-monospace, monospace;
 
   color-scheme: dark;
 }
 
-/* ---------------- Light theme = parchment cream ---------------- */
+/* ---------------- Light theme = clean white ---------------- */
+/* Reads like a real product page: white page, soft warm panels, honey kept
+ * for accents only. Borders are a subtle warm gray so the UI doesn't feel
+ * yellow on white; text contrast is bumped for legibility on screens that
+ * dim well (the demo gets projected). */
 .theme-light {
-  --ink: #fbf6e9; /* parchment background */
-  --ink-2: #f4ead0;
-  --surface: #ffffff;
-  --surface-2: #f7eed3;
+  --ink: #ffffff; /* page background — pure white */
+  --ink-2: #f6f4ee; /* recessed surfaces (inputs, helper boxes) */
+  --surface: #ffffff; /* card surface */
+  --surface-2: #f1ede2; /* hover / pressed */
 
-  --line: #e8dab8; /* warm tan border */
-  --line-strong: #cfb78e;
+  --line: #e6e1d4; /* subtle warm border */
+  --line-strong: #c8c0ad;
 
-  --fg: #1f1810;
-  --fg-soft: #4a3a25;
-  --fg-muted: #6e5942;
-  --fg-faint: #9d8869;
+  --fg: #14110b; /* near-black for body text */
+  --fg-soft: #3a342a;
+  --fg-muted: #6b6253;
+  --fg-faint: #9c9485;
 
-  /* Honey on cream — push toward the deeper logo center color so it sits */
+  /* Honey accents — keep the deeper logo center for primary, brighter as soft */
   --honey: #c77f12;
   --honey-soft: #f2a526;
   --honey-deep: #7a4d08;
@@ -124,6 +130,7 @@
   --color-accent-foreground: var(--fg);
   --color-destructive: var(--destructive);
 
+  --font-display: var(--font-display);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 
@@ -142,21 +149,40 @@
   body {
     @apply bg-ink text-foreground antialiased;
     font-family: var(--font-sans);
-    /* Bricolage Grotesque has presence at 500 — we use 500 base, 700 for
-     * headings, 800 for the heaviest display moments. The variable axis
-     * also lets us hit "between" weights if needed. */
-    font-weight: 500;
+    /* Inter at 450 (between regular/medium) reads softer at body sizes; 500
+     * for stronger inline emphasis, 600 for buttons. Headings switch to
+     * Fraunces (display serif) via the rules below. */
+    font-weight: 450;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.012em;
+    letter-spacing: -0.005em;
   }
 
+  /* Headings use Fraunces (display serif). Optical-size + soft axes are tuned
+   * for screen — looser tracking than Inter, lower x-height, more personality.
+   * No mono uppercase tracking on headings — those reads as code, not as a
+   * brand voice. */
   h1,
   h2,
   h3 {
-    font-weight: 700;
-    letter-spacing: -0.025em;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.018em;
+    font-variation-settings: "opsz" 144, "SOFT" 50;
+  }
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    font-variation-settings: "opsz" 36, "SOFT" 50;
+  }
+  /* Display class for any oversized headline — pushes opsz higher. */
+  .font-display {
+    font-family: var(--font-display);
+    font-variation-settings: "opsz" 144, "SOFT" 50;
   }
 
   /* Mono — tabular numbers + slashed zero for code clarity */
@@ -200,6 +226,14 @@
     transparent 1px
   );
   background-size: 22px 22px;
+}
+.theme-light .bg-dot-grid {
+  /* On white the warm dot pattern reads as paper grid, not as noise. */
+  background-color: #fbfaf6;
+  background-image: radial-gradient(
+    rgb(var(--honey-rgb) / 0.16) 1px,
+    transparent 1px
+  );
 }
 
 /* Glows for tree nodes and cascade animation */
@@ -279,4 +313,32 @@
 .hivework-wallet .wallet-adapter-modal-list .wallet-adapter-button {
   background-color: var(--ink-2);
   color: var(--fg);
+}
+
+/* ------------------------------------------------------------------ */
+/* Dialog enter animations — used by components/ui/dialog.tsx. */
+/* ------------------------------------------------------------------ */
+@keyframes dialog-overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes dialog-content-pop-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+.dialog-overlay-enter[data-state="open"] {
+  animation: dialog-overlay-fade-in 0.18s ease-out;
+}
+.dialog-content-enter[data-state="open"] {
+  animation: dialog-content-pop-in 0.22s ease-out;
 }

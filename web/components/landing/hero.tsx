@@ -49,18 +49,11 @@ export function Hero() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.05 }}
-          className="text-balance text-5xl font-semibold leading-[1.05] tracking-[-0.02em] sm:text-7xl"
+          className="font-display text-balance text-[44px] font-semibold leading-[1.04] tracking-[-0.02em] sm:text-7xl"
         >
-          Marketing is{" "}
-          <span className="relative inline-block">
-            <span className="relative z-10">teamwork.</span>
-            <span
-              aria-hidden
-              className="absolute inset-x-0 bottom-1 -z-0 h-3 bg-honey/20"
-            />
-          </span>
+          Marketing is <span className="italic">teamwork.</span>
           <br />
-          <span className="text-honey">Pay only for the honey.</span>
+          <span className="text-honey italic">Pay only for the honey.</span>
         </motion.h1>
 
         <motion.p

@@ -81,7 +81,7 @@ export function PublishFlowPanel({
     <aside className="flex h-full flex-col gap-4 rounded-lg border border-line bg-surface p-5">
       <header>
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-honey">
-          publish leaf
+          publish post
         </p>
         <h3 className="mt-1.5 text-base font-semibold leading-tight">
           Compose your path on the tree
@@ -120,8 +120,8 @@ export function PublishFlowPanel({
       {pathComplete ? (
         <div className="mt-auto flex flex-col gap-3 border-t border-line pt-4">
           <div className="rounded-md border border-honey/30 bg-honey/5 p-3 font-mono text-[11px] leading-relaxed text-honey">
-            Phantom will sign 1 tx: stake 0.1 SOL + create leaf. You earn the
-            base path payout + 30% leaf bonus on every conversion.
+            Phantom will sign 1 tx: stake 0.1 SOL + publish post. You earn the
+            base path payout + 30% post bonus on every conversion.
           </div>
           <Button variant="honey" onClick={onPublish}>
             <Sparkles className="h-4 w-4" />
@@ -296,7 +296,7 @@ function PublishedCard({
       <header className="flex items-start justify-between gap-3">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-honey">
-            leaf published · live on devnet
+            post published · live on devnet
           </p>
           <h3 className="mt-1.5 text-base font-semibold leading-tight">
             Your referral is live
@@ -377,7 +377,7 @@ function PublishedCard({
 
       <div className="rounded-md border border-honey/30 bg-honey/5 p-3 font-mono text-[11px] leading-relaxed text-honey">
         Every conversion through this link pays the full path proportionally.
-        You get a +30% leaf bonus on top.
+        You get a +30% post bonus on top.
       </div>
 
       <Button
@@ -387,7 +387,7 @@ function PublishedCard({
         className="mt-auto"
       >
         <RotateCcw className="h-3.5 w-3.5" />
-        Publish another leaf
+        Publish another post
       </Button>
     </motion.aside>
   );

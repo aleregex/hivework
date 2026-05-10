@@ -26,7 +26,7 @@ export default function CampaignsPage() {
         </span>
         <h1 className="text-4xl font-semibold tracking-tight">All campaigns</h1>
         <p className="max-w-2xl text-muted">
-          Pick a campaign to see its tree, contribute a node or a leaf, and
+          Pick a campaign to see its tree, contribute a node or a post, and
           start earning when conversions roll in.
         </p>
       </div>
@@ -75,7 +75,7 @@ export default function CampaignsPage() {
               </CardContent>
               <CardFooter className="mt-auto justify-between border-t border-wax/60 pt-4">
                 <span className="text-xs text-muted">
-                  {c.nodes} nodes · {c.leaves} leaves ·{" "}
+                  {c.nodes} nodes · {c.leaves} posts ·{" "}
                   <span className="text-sting">{c.conversions} conv.</span>
                 </span>
                 <Button asChild size="sm" variant="ghost">
