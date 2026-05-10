@@ -1,8 +1,13 @@
 import http from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { config } from "./config.js";
+import { config, isProgramReady } from "./config.js";
 import { registerListActiveCampaigns } from "./tools/list-active-campaigns.js";
+import { registerGetTree } from "./tools/get-tree.js";
+import { registerCreateNode } from "./tools/create-node.js";
+import { registerForkNode } from "./tools/fork-node.js";
+import { registerCreateLeaf } from "./tools/create-leaf.js";
+import { registerQueryPortfolio } from "./tools/query-portfolio.js";
 
 function buildServer(): McpServer {
   const server = new McpServer({
@@ -10,6 +15,11 @@ function buildServer(): McpServer {
     version: "0.1.0",
   });
   registerListActiveCampaigns(server);
+  registerGetTree(server);
+  registerCreateNode(server);
+  registerForkNode(server);
+  registerCreateLeaf(server);
+  registerQueryPortfolio(server);
   return server;
 }
 
@@ -67,6 +77,16 @@ httpServer.listen(config.MCP_PORT, () => {
   );
   console.log(`[mcp] health: http://localhost:${config.MCP_PORT}/health`);
   console.log(`[mcp] B1 API: ${config.B1_API_URL}`);
+  console.log(`[mcp] RPC: ${config.RPC_URL}`);
+  if (isProgramReady()) {
+    console.log(
+      `[mcp] HIVEWORK_PROGRAM_ID: ${config.HIVEWORK_PROGRAM_ID} (signing tools will attempt to build unsigned txs)`,
+    );
+  } else {
+    console.warn(
+      "[mcp] HIVEWORK_PROGRAM_ID is not set — create_node/create_leaf/fork_node will return status='pending_program' until Group A ships.",
+    );
+  }
 });
 
 const shutdown = (signal: string) => {
