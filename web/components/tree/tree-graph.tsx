@@ -43,6 +43,12 @@ type Props = {
   onSelect: (node: TreeNode | null) => void;
   /** Node IDs that should pulse for ~1.2s. Used to react to fresh conversions. */
   pulsingNodeIds?: Set<string>;
+  /**
+   * When true, the whole tree enters "cascade" mode: every link emits heavy
+   * particle traffic and every node glows. Used for the close + distribute
+   * animation in Task #7.
+   */
+  cascadeMode?: boolean;
 };
 
 export function TreeGraph({
@@ -50,6 +56,7 @@ export function TreeGraph({
   selectedNodeId,
   onSelect,
   pulsingNodeIds,
+  cascadeMode = false,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
@@ -69,12 +76,15 @@ export function TreeGraph({
     return () => observer.disconnect();
   }, []);
 
-  // Drive a simple animation clock so the pulse can rerender without forcing the lib to refit.
+  // Drive a simple animation clock so the pulse and cascade glows can rerender
+  // without forcing the lib to refit.
   useEffect(() => {
-    if (!pulsingNodeIds || pulsingNodeIds.size === 0) return;
+    const needsClock =
+      cascadeMode || (pulsingNodeIds && pulsingNodeIds.size > 0);
+    if (!needsClock) return;
     const id = window.setInterval(() => setTick((t) => t + 1), 60);
     return () => window.clearInterval(id);
-  }, [pulsingNodeIds]);
+  }, [pulsingNodeIds, cascadeMode]);
 
   // Auto-fit once the graph has settled.
   useEffect(() => {
@@ -99,20 +109,27 @@ export function TreeGraph({
         // Negative dy pulls children below their parent; positive y at root.
         dagMode="td"
         dagLevelDistance={90}
-        // Look & feel of links
-        linkColor={() => "rgba(245, 197, 24, 0.18)"}
+        // Look & feel of links — cascade mode lights everything up bright.
+        linkColor={() =>
+          cascadeMode ? "rgba(245, 197, 24, 0.55)" : "rgba(245, 197, 24, 0.18)"
+        }
         linkWidth={(link) => {
+          if (cascadeMode) return 1.8;
           const target = link.target as TreeNode;
           if (!target?.conversions) return 0.6;
           // Heavier line for high-traffic branches.
           return Math.min(3, 0.6 + Math.log(target.conversions + 1) * 0.7);
         }}
         linkDirectionalParticles={(link) => {
+          if (cascadeMode) return 6; // every link erupts during cascade
           const target = link.target as TreeNode;
           return target?.conversions && target.conversions > 0 ? 2 : 0;
         }}
-        linkDirectionalParticleSpeed={() => 0.004}
-        linkDirectionalParticleColor={() => COLOR.honey}
+        linkDirectionalParticleWidth={() => (cascadeMode ? 3.2 : 2)}
+        linkDirectionalParticleSpeed={() => (cascadeMode ? 0.012 : 0.004)}
+        linkDirectionalParticleColor={() =>
+          cascadeMode ? COLOR.pollen : COLOR.honey
+        }
         // Custom node drawing: circle + glow + AI badge + label.
         nodeCanvasObject={(node, ctx, globalScale) => {
           const n = node as TreeNode & { x?: number; y?: number };
@@ -133,22 +150,28 @@ export function TreeGraph({
 
           // Pulse modifier: small radius bump on a sine wave for ~1.2s while pulsing.
           const pulseAmp = isPulsing ? 4 + Math.sin(tick * 0.4) * 2 : 0;
-          const radius = baseRadius + pulseAmp;
+          // Cascade mode: every node breathes gently with a synchronized wave.
+          const cascadeAmp = cascadeMode ? 2 + Math.sin(tick * 0.18) * 1.5 : 0;
+          const radius = baseRadius + pulseAmp + cascadeAmp;
 
           // Outer glow
-          if (conversionGlow > 0 || isSelected || isPulsing) {
+          if (conversionGlow > 0 || isSelected || isPulsing || cascadeMode) {
             ctx.beginPath();
-            ctx.arc(n.x, n.y, radius + 6, 0, Math.PI * 2);
+            ctx.arc(n.x, n.y, radius + (cascadeMode ? 10 : 6), 0, Math.PI * 2);
             const glowColor = isPulsing
               ? COLOR.sting
-              : isSelected
+              : cascadeMode
                 ? COLOR.pollen
-                : LEVEL_COLOR[n.level];
+                : isSelected
+                  ? COLOR.pollen
+                  : LEVEL_COLOR[n.level];
             const alpha = isPulsing
               ? 0.35
-              : isSelected
-                ? 0.4
-                : 0.15 + conversionGlow * 0.25;
+              : cascadeMode
+                ? 0.32 + Math.sin(tick * 0.18) * 0.08
+                : isSelected
+                  ? 0.4
+                  : 0.15 + conversionGlow * 0.25;
             ctx.fillStyle = withAlpha(glowColor, alpha);
             ctx.fill();
           }
