@@ -25,12 +25,57 @@
           "writable": true
         },
         {
+          "name": "campaign",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.authority",
+                "account": "Campaign"
+              },
+              {
+                "kind": "account",
+                "path": "campaign.id",
+                "account": "Campaign"
+              }
+            ]
+          },
+          "relations": [
+            "leaf"
+          ]
+        },
+        {
+          "name": "escrow_usdc",
+          "writable": true
+        },
+        {
+          "name": "creator_usdc",
+          "writable": true
+        },
+        {
           "name": "creator",
           "writable": true,
           "signer": true,
           "relations": [
             "leaf"
           ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": []
@@ -53,12 +98,57 @@
           "writable": true
         },
         {
+          "name": "campaign",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.authority",
+                "account": "Campaign"
+              },
+              {
+                "kind": "account",
+                "path": "campaign.id",
+                "account": "Campaign"
+              }
+            ]
+          },
+          "relations": [
+            "node"
+          ]
+        },
+        {
+          "name": "escrow_usdc",
+          "writable": true
+        },
+        {
+          "name": "creator_usdc",
+          "writable": true
+        },
+        {
           "name": "creator",
           "writable": true,
           "signer": true,
           "relations": [
             "node"
           ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": []
@@ -151,16 +241,125 @@
           }
         },
         {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "escrow_usdc",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdc_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "authority_usdc",
+          "writable": true
+        },
+        {
           "name": "authority",
           "writable": true,
           "signer": true
         },
         {
-          "name": "escrow_usdc"
+          "name": "oracle_authority"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         },
         {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
         }
       ],
       "args": [
@@ -181,8 +380,12 @@
           "type": "u8"
         },
         {
-          "name": "_campaign_id",
+          "name": "campaign_id",
           "type": "u32"
+        },
+        {
+          "name": "initial_usdc",
+          "type": "u64"
         }
       ]
     },
@@ -231,10 +434,6 @@
           "name": "creator",
           "writable": true,
           "signer": true
-        },
-        {
-          "name": "parent_node",
-          "writable": true
         },
         {
           "name": "node_l1"
@@ -608,6 +807,16 @@
       "code": 6010,
       "name": "DataTooLarge",
       "msg": "Excede máxima longitud de bytes"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidWeights",
+      "msg": "Los pesos alpha + beta + gamma deben sumar 100"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidDeadline",
+      "msg": "La deadline debe ser una fecha futura"
     }
   ],
   "types": [
@@ -621,7 +830,19 @@
             "type": "pubkey"
           },
           {
+            "name": "id",
+            "type": "u32"
+          },
+          {
             "name": "escrow_usdc",
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "oracle_authority",
             "type": "pubkey"
           },
           {

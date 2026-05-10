@@ -24,4 +24,8 @@ pub enum HiveworkError {
     ConversionAlreadyRegistered,
     #[msg("Excede máxima longitud de bytes")]
     DataTooLarge,
+    #[msg("Los pesos alpha + beta + gamma deben sumar 100")]
+    InvalidWeights,
+    #[msg("La deadline debe ser una fecha futura")]
+    InvalidDeadline,
 }

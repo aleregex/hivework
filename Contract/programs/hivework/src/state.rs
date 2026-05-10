@@ -3,7 +3,10 @@ use anchor_lang::prelude::*;
 #[account]
 pub struct Campaign {
     pub authority: Pubkey,            // 32
+    pub id: u32,                       // 4
     pub escrow_usdc: Pubkey,          // 32
+    pub usdc_mint: Pubkey,            // 32
+    pub oracle_authority: Pubkey,     // 32
     pub total_usdc: u64,              // 8
     pub platform_fee: u8,             // 1
     pub alpha_weight: u8,             // 1
@@ -11,12 +14,12 @@ pub struct Campaign {
     pub gamma_weight: u8,             // 1
     pub deadline: i64,                // 8
     pub is_closed: bool,              // 1
-    pub conversions_processed: u32,   // 4 (Para batch processing de close_and_distribute)
+    pub conversions_processed: u32,   // 4
     pub bump: u8,                     // 1
 }
 
 impl Campaign {
-    pub const SPACE: usize = 8 + 32 + 32 + 8 + 1 + 1 + 1 + 1 + 8 + 1 + 4 + 1;
+    pub const SPACE: usize = 8 + 32 + 4 + 32 + 32 + 32 + 8 + 1 + 1 + 1 + 1 + 8 + 1 + 4 + 1;
 }
 
 #[account]

@@ -102,3 +102,72 @@ npm start
 | 6008 | MathError | Error en cálculo de payout |
 | 6009 | ConversionAlreadyRegistered | Conversión ya procesada |
 | 6010 | DataTooLarge | Excede máxima longitud |
+| 6011 | InvalidWeights | α + β + γ ≠ 100 |
+| 6012 | InvalidDeadline | Deadline en el pasado |
+
+## Cambios v0.2 (USDC real + auth oracle)
+
+### Firma de `create_campaign`
+
+Ahora pide **6 args** (antes 5) y cuentas SPL Token:
+
+```ts
+program.methods
+  .createCampaign(deadline, alpha, beta, gamma, campaignId, initialUsdc)
+  .accounts({
+    campaign: campaignPda,
+    usdcMint,                  // ← NUEVO
+    escrowUsdc,                // ATA derivada de campaignPda + usdcMint
+    authorityUsdc,             // ← NUEVO: ATA de la marca con USDC
+    authority,
+    oracleAuthority,           // ← NUEVO: pubkey del oracle autorizado
+    tokenProgram,              // ← NUEVO
+    associatedTokenProgram,    // ← NUEVO
+    systemProgram,
+    rent,                      // ← NUEVO
+  })
+```
+
+### Firma de `claim_payout` y `claim_leaf_payout`
+
+```ts
+program.methods.claimPayout().accounts({
+  node: nodePda,
+  campaign: campaignPda,       // ← NUEVO (para firmar el CPI)
+  escrowUsdc,                  // ← NUEVO
+  creatorUsdc,                 // ← NUEVO ATA del creator
+  creator,
+  tokenProgram,                // ← NUEVO
+})
+```
+
+### `register_conversion` ahora valida oracle
+
+El signer `oracle` debe coincidir con `campaign.oracle_authority` o falla con `UnauthorizedOracle` (6002). El pubkey del oracle autorizado se fija al crear la campaña.
+
+### Validaciones añadidas en `create_campaign`
+
+- `alpha + beta + gamma == 100` → `InvalidWeights`
+- `deadline > now` → `InvalidDeadline`
+- `initial_usdc > 0`
+
+### Campos nuevos en `Campaign`
+
+- `id: u32`
+- `usdc_mint: Pubkey`
+- `oracle_authority: Pubkey`
+
+## USDC en devnet
+
+El demo necesita un mint de USDC para devnet. Dos opciones:
+
+- **Mint propio de prueba** (recomendado para hackathon): `spl-token create-token --decimals 6` y luego `spl-token mint <MINT> 10000` a la wallet de la marca antes del demo.
+- **USDC oficial de Circle en devnet**: `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`. Requiere conseguir tokens vía faucet de Circle.
+
+## Correr tests
+
+```bash
+cd Contract
+npm install      # primera vez
+anchor test --provider.cluster devnet
+```
