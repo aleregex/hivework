@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Zap } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { TreeView } from "@/components/tree/tree-view";
+import { YourEarningsStrip } from "@/components/tree/your-earnings-strip";
 import { MOCK_CAMPAIGNS } from "@/lib/mocks/campaigns";
 import { MOCK_TREE } from "@/lib/mocks/tree";
 
@@ -116,6 +117,9 @@ export default async function CampaignDetailPage({ params }: PageProps) {
           <Stat label="conv" value={totalConversions} accent="sting" />
         </div>
       </section>
+
+      {/* Per-wallet earnings + stake summary, with the Withdraw modal. */}
+      <YourEarningsStrip campaignId={campaign.id} />
 
       {/* Tree */}
       <div className="mt-4">
