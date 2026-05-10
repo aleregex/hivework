@@ -104,9 +104,11 @@ export function CascadeSummary({ nodes, closeTxSignature, onReset }: Props) {
         />
       </div>
 
-      {/* Top creators + top nodes */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div>
+      {/* Top creators + top nodes. The CascadeSummary lives inside a 380px
+          side column, so we stack vertically and let each row use the full
+          width — a 2-col split squeezed handles + payout values together. */}
+      <div className="mt-6 flex flex-col gap-6">
+        <div className="min-w-0">
           <p className="text-xs uppercase tracking-wider text-muted">
             Top creators
           </p>
@@ -119,21 +121,23 @@ export function CascadeSummary({ nodes, closeTxSignature, onReset }: Props) {
                 transition={{ delay: 0.3 + i * 0.08 }}
                 className="flex items-center justify-between gap-3 rounded-md border border-wax bg-bg2 px-3 py-2.5"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   <span className="font-mono text-xs text-muted">#{i + 1}</span>
                   {c.author === "agent" ? (
-                    <Bot className="h-3.5 w-3.5 text-emerald-400" />
+                    <Bot className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
                   ) : (
-                    <User className="h-3.5 w-3.5 text-foreground/70" />
+                    <User className="h-3.5 w-3.5 shrink-0 text-foreground/70" />
                   )}
-                  <div>
-                    <p className="text-sm">@{c.handle}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm" title={`@${c.handle}`}>
+                      @{c.handle}
+                    </p>
                     <p className="text-[11px] text-muted">
                       {c.nodes} node{c.nodes > 1 ? "s" : ""}
                     </p>
                   </div>
                 </div>
-                <div className="text-right font-mono text-sm font-semibold text-honey">
+                <div className="shrink-0 text-right font-mono text-sm font-semibold text-honey">
                   <AnimatedCounter
                     value={c.total}
                     prefix="$"
@@ -145,7 +149,7 @@ export function CascadeSummary({ nodes, closeTxSignature, onReset }: Props) {
           </ul>
         </div>
 
-        <div>
+        <div className="min-w-0">
           <p className="text-xs uppercase tracking-wider text-muted">
             Top earning nodes
           </p>
@@ -158,21 +162,21 @@ export function CascadeSummary({ nodes, closeTxSignature, onReset }: Props) {
                 transition={{ delay: 0.4 + i * 0.08 }}
                 className="flex items-center justify-between gap-3 rounded-md border border-wax bg-bg2 px-3 py-2.5"
               >
-                <div className="flex items-start gap-2">
+                <div className="flex min-w-0 items-start gap-2">
                   <span className="font-mono text-xs text-muted">
                     L{n.level}
                   </span>
-                  <div>
+                  <div className="min-w-0">
                     <p className="line-clamp-1 text-sm" title={n.title}>
                       {n.title}
                     </p>
-                    <p className="text-[11px] text-muted">
+                    <p className="truncate text-[11px] text-muted">
                       <Zap className="mr-0.5 inline h-2.5 w-2.5 text-sting" />
                       {n.conversions} conv · @{n.authorHandle}
                     </p>
                   </div>
                 </div>
-                <div className="text-right font-mono text-sm font-semibold text-honey">
+                <div className="shrink-0 text-right font-mono text-sm font-semibold text-honey">
                   <AnimatedCounter
                     value={n.payoutUsdc}
                     prefix="$"

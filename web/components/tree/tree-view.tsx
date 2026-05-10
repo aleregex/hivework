@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Bot, Coins, Loader2, Network, Plus, Sparkles, Wallet } from "lucide-react";
+import { Bot, Coins, Loader2, Network, Sparkles, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -453,25 +453,16 @@ export function TreeView({ initialNodes, campaignId }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Action bar — primary "+ New hook" CTA (left), status / close on the
-          right. Add-child happens by clicking a node; this button covers the
-          "empty canvas, where do I start" case. */}
+      {/* Action bar — left side is just a hint (clicking a node in the tree
+          is the canonical add-child action, including the campaign root for
+          L1 hooks). Right side carries status + close CTA. */}
       <div className="flex min-h-[28px] flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {mode === "live" && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAddUnder(null)}
-              title="Add a top-level hook (L1) under the campaign root"
-            >
-              <Plus className="h-4 w-4" />
-              New hook
-            </Button>
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-faint">
+              Click any node to grow under it
+            </span>
           )}
-          <span className="hidden font-mono text-[10px] uppercase tracking-[0.18em] text-faint sm:inline">
-            or click any node to grow under it
-          </span>
         </div>
 
         <div className="flex items-center gap-3">
