@@ -11,14 +11,13 @@ if (!process.env.DATABASE_URL) {
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-// Wallets from COORDINATION.md (devnet, Group C demo wallets).
-// Agent pubkey is a placeholder until B/agent confirms one.
+// Wallets from COORDINATION.md (devnet).
 const BRAND_WALLET = "DPYGZFEBpbWy4ZrtffidiwX6e4o1BViPRa12nSaGJNpJ";
 const HUMAN_1 = "HDB8PCh2n9LeJaMxc6p2MjEZqLxLKYqNN8JpWrFLHga1";
 const HUMAN_2 = "54ZWDopbSHSECW46MBqs6HSUDCWgqMkzH7BbQPsjifgY";
 const HUMAN_3 = "Dn9Ybbbj8tN6R93pVyEgeSYwRumpzMv4b2KymJnZQUE8";
-// TODO(B/agent): replace with the agent's real devnet pubkey once shared.
-const AGENT_PLACEHOLDER = "AGENTPLACEHOLDERPubkey1111111111111111111111";
+// Apis — main AI agent (B/agent), shared in commit c812642.
+const AGENT_APIS = "EMwSrLzbFfU5PvcrnP1jkf2QJdeRJvEXoghTVpnM3Va4";
 
 async function main(): Promise<void> {
   console.log("[seed] resetting Halo Cola fixture…");
@@ -69,7 +68,7 @@ async function main(): Promise<void> {
       campaignId: campaign.id,
       level: "L1",
       parentNodeId: null,
-      creatorWallet: AGENT_PLACEHOLDER,
+      creatorWallet: AGENT_APIS,
       title: "Move over, big soda",
       description:
         "Challenger angle: side-by-side with the legacy cola brand, calling out artificial sweeteners and price hikes. Direct, irreverent.",
@@ -104,7 +103,7 @@ async function main(): Promise<void> {
       campaignId: campaign.id,
       level: "L2",
       parentNodeId: h1.id,
-      creatorWallet: AGENT_PLACEHOLDER,
+      creatorWallet: AGENT_APIS,
       title: "ASMR can crack + pour",
       description:
         "No music. Just an extreme-detail recording of the can opening, fizz, and pour over ice. 6 seconds.",
@@ -156,7 +155,7 @@ async function main(): Promise<void> {
       campaignId: campaign.id,
       level: "L3",
       parentNodeId: a1.id,
-      creatorWallet: AGENT_PLACEHOLDER,
+      creatorWallet: AGENT_APIS,
       title: "Bottle vs can comparison",
       description:
         "Side-by-side of Halo Cola can next to the legacy brand can. Same size, same price, different ingredients list overlay.",
@@ -195,7 +194,7 @@ async function main(): Promise<void> {
     },
     {
       path: [h1.id, a1.id, v2.id],
-      creatorWallet: AGENT_PLACEHOLDER,
+      creatorWallet: AGENT_APIS,
       contentUrl: "https://www.instagram.com/reel/agentcola001",
       platform: "instagram" as const,
     },
