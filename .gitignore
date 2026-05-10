@@ -5,3 +5,6 @@
 .claude/scheduled_tasks.lock
 .claude/local_agents.lock
 .claude/__pycache__/
+
+# Solana keypair JSON files — devnet only, but never commit secret keys
+.local-keys/

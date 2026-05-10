@@ -35,10 +35,12 @@ Cada grupo declara sus wallets aquí. Quien necesite SOL/USDC pre-fundeado se lo
 
 | Rol | Pubkey | Notas |
 |-----|--------|-------|
-| Marca demo | `[completar]` | Wallet que crea la campaña en el demo |
-| Creator humano 1 | `[completar]` | Miembro del equipo que crea nodos durante demo |
-| Creator humano 2 | `[completar]` | Miembro del equipo que publica hojas |
-| Creator humano 3 | `[completar]` | Miembro del equipo que "compra" durante demo |
+| Marca demo | `DPYGZFEBpbWy4ZrtffidiwX6e4o1BViPRa12nSaGJNpJ` | Wallet que crea la campaña en el demo |
+| Creator humano 1 | `HDB8PCh2n9LeJaMxc6p2MjEZqLxLKYqNN8JpWrFLHga1` | Miembro del equipo que crea nodos durante demo |
+| Creator humano 2 | `54ZWDopbSHSECW46MBqs6HSUDCWgqMkzH7BbQPsjifgY` | Miembro del equipo que publica hojas |
+| Creator humano 3 | `Dn9Ybbbj8tN6R93pVyEgeSYwRumpzMv4b2KymJnZQUE8` | Miembro del equipo que "compra" durante demo |
+
+> Generadas con `cd web && node scripts/gen-wallets.mjs`. Los archivos JSON con las secret keys viven en `web/.local-keys/` (gitignored). Si se pierden, regenerar y actualizar pubkeys aquí. **Devnet only**.
 
 ### Pre-fundeo necesario
 
