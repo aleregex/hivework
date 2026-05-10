@@ -1,0 +1,9 @@
+# Build artifacts
+target/
+
+# Oracle
+oracle/node_modules/
+oracle/.env
+
+# Cargo lock (optional, but recommended to commit for programs)
+# Cargo.lock
