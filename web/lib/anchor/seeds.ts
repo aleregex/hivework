@@ -22,7 +22,11 @@ export function u32LE(n: number): Uint8Array {
 
 /** SHA-256 of a UTF-8 string → 32-byte Uint8Array. Browser-side only. */
 export async function sha256Bytes(input: string): Promise<Uint8Array> {
-  const buf = await crypto.subtle.digest("SHA-256", enc(input));
+  // Copy into a fresh ArrayBuffer-backed view: TS 5.7+ types
+  // `TextEncoder.encode()` as `Uint8Array<ArrayBufferLike>`, but
+  // `crypto.subtle.digest` requires an `ArrayBuffer`-backed `BufferSource`.
+  const data = new Uint8Array(enc(input));
+  const buf = await crypto.subtle.digest("SHA-256", data);
   return new Uint8Array(buf);
 }
 
