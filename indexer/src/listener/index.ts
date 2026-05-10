@@ -2,12 +2,16 @@ import { address } from '@solana/kit'
 import { createRpcClients } from '../rpc.js'
 import type { Config } from '../config.js'
 import { slotCursor } from '../slot-cursor.js'
+import { parseAnchorEvents } from './parser.js'
+import { dispatch } from './handlers.js'
+import { log } from '../log.js'
+import { listenerStatus } from '../status.js'
 
 const PLACEHOLDER = 'PLACEHOLDER_UNTIL_GROUP_A_DEPLOYS'
 
 export async function startListener(cfg: Config, signal: AbortSignal): Promise<void> {
   if (cfg.programId === PLACEHOLDER) {
-    console.warn('[listener] PROGRAM_ID is placeholder — listener idle until Grupo A deploys')
+    log.indexer.warn('PROGRAM_ID is placeholder — listener idle until Grupo A deploys')
     return
   }
 
@@ -22,23 +26,35 @@ export async function startListener(cfg: Config, signal: AbortSignal): Promise<v
         .logsNotifications({ mentions: [programId] }, { commitment: 'confirmed' })
         .subscribe({ abortSignal: signal })
 
-      console.log('[listener] subscribed', cfg.programId)
+      log.indexer.info('subscribed', { programId: cfg.programId })
       stableSince = Date.now()
+      listenerStatus.connected = true
 
-      for await (const { value } of sub) {
+      for await (const notification of sub) {
+        // Reset attempt counter once we've been stable for 60s.
         if (Date.now() - stableSince > 60_000) attempt = 0
+
+        const value = notification.value
+        const ctx = notification.context as { slot: number | bigint } | undefined
+        const slot = ctx?.slot != null ? BigInt(ctx.slot) : 0n
+
         if (value.err) continue
-        // TODO: parseAnchorEvents(value.logs, idl) → dispatch(event, signature, slot)
-        console.log('[listener]', value.signature, value.logs.length, 'lines')
-        // slot is not in logsNotifications payload directly — fetched via getSignatureStatuses if needed
-        await slotCursor.set(0n)
+
+        const events = parseAnchorEvents(value.logs)
+        for (const ev of events) {
+          // dispatch swallows its own errors; we never propagate out.
+          await dispatch(ev, value.signature, slot)
+        }
+
+        if (slot > 0n) await slotCursor.set(slot)
       }
     } catch (e) {
+      listenerStatus.connected = false
       if (signal.aborted) return
       attempt++
       const base = Math.min(30_000, 1000 * 2 ** Math.min(attempt, 5))
       const delay = base + Math.floor(Math.random() * 500)
-      console.error('[listener] reconnect in', delay, 'ms — attempt', attempt, e)
+      log.indexer.error('reconnect scheduled', { delayMs: delay, attempt, err: String(e) })
       await sleep(delay, signal)
     }
   }
