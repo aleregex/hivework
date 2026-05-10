@@ -10,7 +10,11 @@ import { NodeDetailPanel } from "./node-detail-panel";
 import { TreeLegend } from "./tree-legend";
 import { CascadeSummary } from "./cascade-summary";
 import { DemoControlPanel } from "./demo-control-panel";
-import { PublishFlowPanel, type PublishState, type PublishStep } from "./publish-flow-panel";
+import {
+  PublishFlowPanel,
+  type PublishState,
+  type PublishStep,
+} from "./publish-flow-panel";
 import { AgentChatPanel, type PathSuggestion } from "./agent-chat-panel";
 import { MyLeavesPanel } from "./my-leaves-panel";
 import { AddNodeDialog } from "./add-node-dialog";
@@ -389,21 +393,18 @@ export function TreeView({ initialNodes, campaignId }: Props) {
   }, []);
 
   /** Plug an agent suggestion straight into the publish state + switch tabs. */
-  const acceptAgentPath = useCallback(
-    (path: PathSuggestion) => {
-      setPublish({
-        hookId: path.hookId,
-        audioId: path.audioId,
-        visualId: path.visualId,
-        refCode: null,
-      });
-      setTab("publish");
-      toast.success("Path locked from agent — review & publish", {
-        duration: 2200,
-      });
-    },
-    []
-  );
+  const acceptAgentPath = useCallback((path: PathSuggestion) => {
+    setPublish({
+      hookId: path.hookId,
+      audioId: path.audioId,
+      visualId: path.visualId,
+      refCode: null,
+    });
+    setTab("publish");
+    toast.success("Path locked from agent — review & publish", {
+      duration: 2200,
+    });
+  }, []);
 
   /* ---------- inline add-node modal ---------- */
 
@@ -497,9 +498,7 @@ export function TreeView({ initialNodes, campaignId }: Props) {
             <TreeGraph
               data={graph}
               selectedNodeId={selected?.id ?? null}
-              onSelect={
-                isCascading || isClosed ? () => {} : handleTreeClick
-              }
+              onSelect={isCascading || isClosed ? () => {} : handleTreeClick}
               pulsingNodeIds={pulsing}
               cascadeMode={isCascading || isClosed}
               selectableNodeIds={selectableNodeIds}
@@ -533,10 +532,14 @@ export function TreeView({ initialNodes, campaignId }: Props) {
                     onClearStep={clearPublishStep}
                     onPublish={finalizePublish}
                     onReset={resetPublish}
+                    nodes={nodes}
                   />
                 )}
                 {tab === "agent" && (
-                  <AgentChatPanel onAcceptPath={acceptAgentPath} />
+                  <AgentChatPanel
+                    onAcceptPath={acceptAgentPath}
+                    nodes={nodes}
+                  />
                 )}
                 {tab === "my-leaves" && (
                   <MyLeavesPanel campaignId={campaignId} />
@@ -555,8 +558,8 @@ export function TreeView({ initialNodes, campaignId }: Props) {
               </div>
               <p className="text-xs leading-relaxed text-fg-soft">
                 The contract walks every conversion path, computes node weights
-                with α/β/γ, and batches the USDC transfers. Watch the tree
-                light up.
+                with α/β/γ, and batches the USDC transfers. Watch the tree light
+                up.
               </p>
               <code className="rounded bg-ink-2 px-2 py-1 font-mono text-[10px] text-fg-soft">
                 cluster: devnet · slot: pending

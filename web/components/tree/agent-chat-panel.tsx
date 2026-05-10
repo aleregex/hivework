@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Bot, Send, Sparkles, User } from "lucide-react";
-import { MOCK_TREE, type TreeNode } from "@/lib/mocks/tree";
+import { type TreeNode } from "@/lib/mocks/tree";
 
 /* ------------------------------------------------------------------ *
  * Mocked agent chat. Deterministic responses keyed off keywords so
@@ -26,16 +26,17 @@ export type PathSuggestion = {
 
 type Props = {
   onAcceptPath: (path: PathSuggestion) => void;
+  /** Current tree nodes — used to resolve titles in suggestion bubbles. */
+  nodes: TreeNode[];
 };
 
 const HELLO: Message = {
   role: "agent",
   kind: "text",
-  text:
-    "Hey — I'm the hivework agent. Tell me about your audience (niche, platform, vibe) and I'll suggest a path with the highest expected payout for you.",
+  text: "Hey — I'm the hivework agent. Tell me about your audience (niche, platform, vibe) and I'll suggest a path with the highest expected payout for you.",
 };
 
-export function AgentChatPanel({ onAcceptPath }: Props) {
+export function AgentChatPanel({ onAcceptPath, nodes }: Props) {
   const [messages, setMessages] = useState<Message[]>([HELLO]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
@@ -55,11 +56,14 @@ export function AgentChatPanel({ onAcceptPath }: Props) {
     setThinking(true);
 
     // Mock streaming-ish delay so it feels responsive but not instant.
-    window.setTimeout(() => {
-      const reply = respondTo(trimmed);
-      setMessages((m) => [...m, ...reply]);
-      setThinking(false);
-    }, 700 + Math.random() * 500);
+    window.setTimeout(
+      () => {
+        const reply = respondTo(trimmed);
+        setMessages((m) => [...m, ...reply]);
+        setThinking(false);
+      },
+      700 + Math.random() * 500
+    );
   };
 
   return (
@@ -75,7 +79,9 @@ export function AgentChatPanel({ onAcceptPath }: Props) {
             </span>
           </span>
           <div>
-            <p className="text-sm font-semibold leading-tight">hivework agent</p>
+            <p className="text-sm font-semibold leading-tight">
+              hivework agent
+            </p>
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
               mcp · gpt-cola-001
             </p>
@@ -92,7 +98,12 @@ export function AgentChatPanel({ onAcceptPath }: Props) {
         className="flex-1 space-y-3 overflow-y-auto px-4 py-4"
       >
         {messages.map((m, i) => (
-          <Bubble key={i} message={m} onAcceptPath={onAcceptPath} />
+          <Bubble
+            key={i}
+            message={m}
+            onAcceptPath={onAcceptPath}
+            nodes={nodes}
+          />
         ))}
         {thinking && <ThinkingBubble />}
       </div>
@@ -149,9 +160,11 @@ const QUICK_PROMPTS = [
 function Bubble({
   message,
   onAcceptPath,
+  nodes,
 }: {
   message: Message;
   onAcceptPath: (path: PathSuggestion) => void;
+  nodes: TreeNode[];
 }) {
   if (message.role === "user") {
     return (
@@ -171,9 +184,9 @@ function Bubble({
   }
   if (message.kind === "suggestion") {
     const path = message.path;
-    const hook = MOCK_TREE.find((n) => n.id === path.hookId);
-    const audio = MOCK_TREE.find((n) => n.id === path.audioId);
-    const visual = MOCK_TREE.find((n) => n.id === path.visualId);
+    const hook = nodes.find((n) => n.id === path.hookId);
+    const audio = nodes.find((n) => n.id === path.audioId);
+    const visual = nodes.find((n) => n.id === path.visualId);
     return (
       <motion.div
         initial={{ opacity: 0, y: 4 }}
@@ -228,9 +241,7 @@ function PathRow({ label, node }: { label: string; node?: TreeNode }) {
       <span className="text-faint">{label}</span>
       <ArrowRight className="h-3 w-3 text-faint" />
       <span className="truncate text-foreground">{node.title}</span>
-      <span className="ml-auto text-sting tabular">
-        {node.conversions}c
-      </span>
+      <span className="ml-auto text-sting tabular">{node.conversions}c</span>
     </div>
   );
 }
@@ -291,15 +302,12 @@ function respondTo(text: string): Message[] {
       "Lower volume but very stable conversion rate (12/sec). Best fit for a creator with an emotional / lifestyle audience — the lo-fi audio + condensation visual reads as 'cinematic ad'.",
   };
 
-  if (
-    /high|max|best|paying|top|hot|trending|tiktok|reach|viral/.test(lower)
-  ) {
+  if (/high|max|best|paying|top|hot|trending|tiktok|reach|viral/.test(lower)) {
     return [
       {
         role: "agent",
         kind: "text",
-        text:
-          "Based on the live tree state, here's the highest-paying path right now:",
+        text: "Based on the live tree state, here's the highest-paying path right now:",
       },
       {
         role: "agent",
@@ -315,8 +323,7 @@ function respondTo(text: string): Message[] {
       {
         role: "agent",
         kind: "text",
-        text:
-          "Got it — for that audience the lifestyle path tends to convert better than the challenger angle:",
+        text: "Got it — for that audience the lifestyle path tends to convert better than the challenger angle:",
       },
       {
         role: "agent",
@@ -332,8 +339,7 @@ function respondTo(text: string): Message[] {
       {
         role: "agent",
         kind: "text",
-        text:
-          "Halo Cola is consumer, but for a web3 audience the challenger angle resonates with the 'old vs new guard' narrative. Try this:",
+        text: "Halo Cola is consumer, but for a web3 audience the challenger angle resonates with the 'old vs new guard' narrative. Try this:",
       },
       {
         role: "agent",
@@ -348,8 +354,7 @@ function respondTo(text: string): Message[] {
     {
       role: "agent",
       kind: "text",
-      text:
-        "Cool. I'll need a hint about your platform or vibe to optimize. Or I can just show you the path with the highest current payout — say 'best paying' and I'll pull it.",
+      text: "Cool. I'll need a hint about your platform or vibe to optimize. Or I can just show you the path with the highest current payout — say 'best paying' and I'll pull it.",
     },
   ];
 }

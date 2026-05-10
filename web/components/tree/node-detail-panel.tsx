@@ -177,8 +177,7 @@ export function NodeDetailPanel({
       )}
 
       <p className="mt-auto font-mono text-[10px] uppercase tracking-[0.18em] text-faint">
-        node id ·{" "}
-        <span className="normal-case text-fg-soft">{node.id}</span>
+        node id · <span className="normal-case text-fg-soft">{node.id}</span>
       </p>
     </aside>
   );

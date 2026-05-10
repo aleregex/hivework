@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { ArrowUpRight, Clock, Network, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/ui/section-label";
-import { MOCK_CAMPAIGNS } from "@/lib/mocks/campaigns";
+import { useCampaigns } from "@/lib/api/hooks";
+import { adaptCampaign } from "@/lib/api/adapters";
 
 const CATEGORY_LABEL: Record<string, string> = {
   consumer: "consumer",
@@ -25,8 +26,14 @@ function formatPool(amount: number) {
 }
 
 export function ActiveCampaigns() {
+  const { data } = useCampaigns(3);
+  const campaigns = (data?.items ?? []).map(adaptCampaign);
+
   return (
-    <section id="campaigns" className="border-b border-line bg-ink py-24 sm:py-28">
+    <section
+      id="campaigns"
+      className="border-b border-line bg-ink py-24 sm:py-28"
+    >
       <div className="mx-auto max-w-6xl px-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex max-w-xl flex-col gap-4">
@@ -49,7 +56,7 @@ export function ActiveCampaigns() {
         </div>
 
         <div className="mt-12 grid gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-2 lg:grid-cols-3">
-          {MOCK_CAMPAIGNS.slice(0, 3).map((campaign, i) => {
+          {campaigns.slice(0, 3).map((campaign, i) => {
             const progress = Math.round(
               (campaign.spentUsdc / campaign.poolUsdc) * 100
             );
@@ -113,8 +120,8 @@ export function ActiveCampaigns() {
                         <span className="text-honey">
                           ${formatPool(campaign.spentUsdc)}
                         </span>
-                        <span className="text-faint"> / </span>
-                        ${formatPool(campaign.poolUsdc)}
+                        <span className="text-faint"> / </span>$
+                        {formatPool(campaign.poolUsdc)}
                       </span>
                     </div>
                     <div className="relative h-1 overflow-hidden rounded-full bg-line">

@@ -34,11 +34,7 @@ function hex(size: number) {
   return `M 0 ${-h} L ${w} ${-h / 2} L ${w} ${h / 2} L 0 ${h} L ${-w} ${h / 2} L ${-w} ${-h / 2} Z`;
 }
 
-function Glyph({
-  kind,
-}: {
-  kind: 0 | 1 | 2 | 3 | 4 | "agent" | "conv";
-}) {
+function Glyph({ kind }: { kind: 0 | 1 | 2 | 3 | 4 | "agent" | "conv" }) {
   if (kind === "agent") {
     return (
       <span className="relative inline-block h-2 w-2 rounded-full bg-live ring-1 ring-ink" />

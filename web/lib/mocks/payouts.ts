@@ -1,5 +1,6 @@
-// Mock payouts owed to the connected wallet. Real data comes from the on-chain
-// program (per-wallet PDA balances) read via Anchor in Task #6.
+// Types used by /claim. Real data now comes from Group B's
+// GET /wallets/:address/portfolio via lib/api/hooks.ts + the
+// adaptPortfolio* helpers.
 
 export type PendingPayout = {
   campaignId: string;
@@ -19,44 +20,16 @@ export type ClaimedPayout = {
   txSignature: string;
 };
 
-export const MOCK_PENDING_PAYOUTS: PendingPayout[] = [
-  {
-    campaignId: "cmp_halo_cola",
-    campaignName: "Halo Cola",
-    brandHandle: "halocola",
-    nodes: 3,
-    pendingUsdc: 38.4,
-    closesInHours: 142,
-    status: "active",
-  },
-  {
-    campaignId: "cmp_andean_token",
-    campaignName: "Andean DAO genesis mint",
-    brandHandle: "andean",
-    nodes: 2,
-    pendingUsdc: 218.5,
-    closesInHours: -2, // already closed, claimable
-    status: "claimable",
-  },
-];
-
-export const MOCK_CLAIMED_PAYOUTS: ClaimedPayout[] = [
-  {
-    campaignId: "cmp_quinoa_runners",
-    campaignName: "Quinoa Runners shoe drop",
-    amountUsdc: 47.2,
-    claimedAt: "2026-04-18T14:22:00Z",
-    txSignature:
-      "5xK2mP3qN8rT9wY1aZbCdEfG7hJiKlMnOpQrStUvWxYz1aBcDeFgHiJkLmNoPqRsTuVw",
-  },
-  {
-    campaignId: "cmp_qheswa_radio",
-    campaignName: "Qheswa Radio launch",
-    amountUsdc: 89.6,
-    claimedAt: "2026-04-02T09:15:00Z",
-    txSignature:
-      "3aB4cD5eF6gH7iJ8kL9mN0oP1qR2sT3uV4wX5yZ6aB7cD8eF9gH0iJ1kL2mN3oP4qR5s",
-  },
-];
-
-export const LIFETIME_TOTAL_USDC = 1283.9;
+// Mock data commented out — replaced by usePortfolio() (Tier 3).
+//
+// export const MOCK_PENDING_PAYOUTS: PendingPayout[] = [
+//   { campaignId: "cmp_halo_cola", ... },
+//   { campaignId: "cmp_andean_token", ... },
+// ];
+//
+// export const MOCK_CLAIMED_PAYOUTS: ClaimedPayout[] = [
+//   { campaignId: "cmp_quinoa_runners", ... },
+//   { campaignId: "cmp_qheswa_radio", ... },
+// ];
+//
+// export const LIFETIME_TOTAL_USDC = 1283.9;

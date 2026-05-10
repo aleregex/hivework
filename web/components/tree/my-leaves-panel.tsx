@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -15,11 +15,9 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { WalletConnectButton } from "@/components/wallet-connect-button";
-import {
-  getMyLeavesForCampaign,
-  summarizeMyLeaves,
-  type MyLeafEnriched,
-} from "@/lib/mocks/my-leaves";
+import { useCampaign, usePortfolio } from "@/lib/api/hooks";
+import { adaptMyLeavesForCampaign } from "@/lib/api/adapters";
+import { summarizeMyLeaves, type MyLeafEnriched } from "@/lib/mocks/my-leaves";
 
 type Props = {
   campaignId: string;
@@ -27,14 +25,21 @@ type Props = {
 
 /**
  * Lists every leaf the connected wallet has published in this campaign,
- * with QR + link + per-leaf stats. Mock data via getMyLeavesForCampaign.
+ * with QR + link + per-leaf stats.
  *
- * In real impl this is a useQuery(["my-leaves", campaignId, pubkey]) against
- * Group B's indexer; the panel is purely presentational.
+ * Joins two reads: the wallet's portfolio (which leaves it owns) and the
+ * campaign tree (to resolve the path titles for each leaf). Both queries
+ * use react-query so cross-tab navigation stays cheap.
  */
 export function MyLeavesPanel({ campaignId }: Props) {
   const { publicKey } = useWallet();
-  const leaves = getMyLeavesForCampaign(campaignId);
+  const address = publicKey?.toBase58();
+  const { data: portfolio } = usePortfolio(address);
+  const { data: campaignDetail } = useCampaign(campaignId);
+  const leaves = useMemo<MyLeafEnriched[]>(() => {
+    if (!portfolio || !campaignDetail) return [];
+    return adaptMyLeavesForCampaign(portfolio, campaignDetail, campaignId);
+  }, [portfolio, campaignDetail, campaignId]);
 
   if (!publicKey) {
     return (

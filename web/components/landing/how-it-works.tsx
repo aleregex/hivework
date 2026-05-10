@@ -47,8 +47,8 @@ export function HowItWorks() {
           <h2 className="text-balance text-4xl leading-[1.1] sm:text-5xl">
             Marketing as code.
             <br />
-            <span className="italic text-honey">Open trees.</span>{" "}
-            Proportional payouts.
+            <span className="italic text-honey">Open trees.</span> Proportional
+            payouts.
           </h2>
           <p className="max-w-xl text-base leading-relaxed text-fg-soft">
             Anything with monetary value or irreversible decisions lives
@@ -79,7 +79,10 @@ export function HowItWorks() {
                   </span>
                   step
                 </span>
-                <span aria-hidden className="h-1.5 w-1.5 rotate-45 bg-honey/60" />
+                <span
+                  aria-hidden
+                  className="h-1.5 w-1.5 rotate-45 bg-honey/60"
+                />
               </div>
 
               <h3 className="text-xl leading-snug">{step.title}</h3>
