@@ -3,15 +3,10 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Zap } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { TreeView } from "@/components/tree/tree-view";
-<<<<<<< Updated upstream
 import { YourEarningsStrip } from "@/components/tree/your-earnings-strip";
-import { MOCK_CAMPAIGNS } from "@/lib/mocks/campaigns";
-import { MOCK_TREE } from "@/lib/mocks/tree";
-=======
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { adaptCampaign, adaptTree } from "@/lib/api/adapters";
 import type { ApiCampaignDetail } from "@/lib/api/types";
->>>>>>> Stashed changes
 
 type PageProps = {
   params: Promise<{ id: string }>;
