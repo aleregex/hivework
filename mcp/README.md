@@ -222,7 +222,7 @@ Register a leaf (a published piece of content with a unique referral link). `pat
 
 ### `query_my_portfolio`
 
-Get all activity for a wallet: nodes created, leaves published, active stakes, pending USDC payouts.
+Get all activity for a wallet: nodes created, leaves published, active stakes, pending USDC payouts (computed off-chain by applying the on-chain payout formula to indexed conversions), and historical claims.
 
 **Input**
 ```json
@@ -235,7 +235,39 @@ Get all activity for a wallet: nodes created, leaves published, active stakes, p
 }
 ```
 
-**Output** — passthrough of `GET /wallets/:address/portfolio`.
+**Output** — passthrough of `GET /wallets/:address/portfolio`. Shape:
+
+```json
+{
+  "wallet": "string",
+  "nodes": "Node[]",
+  "leaves": "Leaf[]",
+  "stakedSol": "string",
+  "pendingPayoutsUsdc": "string",
+  "pendingByCampaign": [
+    {
+      "campaignId": "string",
+      "campaignName": "string",
+      "brandName": "string",
+      "contributingNodes": 0,
+      "pendingUsdc": "string",
+      "status": "active | claimable"
+    }
+  ],
+  "claimHistory": [
+    {
+      "campaignId": "string",
+      "campaignName": "string",
+      "amountUsdc": "string",
+      "claimedAt": "ISO-8601 string",
+      "txSignature": "string"
+    }
+  ],
+  "lifetimeClaimedUsdc": "string"
+}
+```
+
+Pending values match the on-chain formula (α=0.4, β=0.4, γ=0.2, 5% platform fee, 30% leaf bonus). `claimHistory`/`lifetimeClaimedUsdc` are populated once the indexer subscribes to `PayoutClaimed` events from the contract — they are stable empty/zero until then.
 
 ---
 
@@ -267,7 +299,7 @@ Mcp talks to B/api over HTTP only. The contracts assumed by these tools:
 | `create_node` | `POST` | `/nodes/draft` | body: `{ campaign_id, parent_id, level, creator_wallet, title, description, examples, tags, media_urls, fork_of, stake_sol }` → `{ node_id, metadata_hash? }` |
 | `fork_node` | `GET` | `/nodes/:id` | `{ node_id, campaign_id, parent_id, level, title, description, examples?, tags?, media_urls? }` |
 | `create_leaf` | `POST` | `/leaves/draft` | body: `{ campaign_id, path, creator_wallet, content_url, platform, stake_sol }` → `{ leaf_id, ref_code, short_url, metadata_hash? }` |
-| `query_my_portfolio` | `GET` | `/wallets/:address/portfolio` | `{ nodes: [], leaves: [], pending_payouts_usdc: number }` |
+| `query_my_portfolio` | `GET` | `/wallets/:address/portfolio` | `{ wallet, nodes, leaves, stakedSol, pendingPayoutsUsdc, pendingByCampaign, claimHistory, lifetimeClaimedUsdc }` (see § "query_my_portfolio" for the full shape) |
 
 **Mcp does NOT call `/nodes/finalize` or `/leaves/finalize`.** That transition is the indexer's responsibility once it observes the on-chain event.
 
