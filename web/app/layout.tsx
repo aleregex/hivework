@@ -1,19 +1,29 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, JetBrains_Mono } from "next/font/google";
+import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./components/providers";
 
-// Bricolage Grotesque — wide, warm, geometric grotesque. Carries enough
-// personality to feel branded (not "default SaaS Inter") while staying
-// readable. Wider letterforms align with the hexagonal motif and prevent
-// the anemic feel that Geist/Manrope had at small sizes.
-//
-// JetBrains Mono — numbers, IDs, addresses, hex paths.
-const bricolage = Bricolage_Grotesque({
+// Typography stack:
+//   Fraunces      — display serif for headings + the wordmark. Gives the
+//                    brand actual personality (vs. "default grotesque").
+//   Inter         — body. Neutral, calm, optimised for UI sizes 13–18.
+//   JetBrains Mono — strictly for code, hashes, USDC amounts, numeric tags.
+// Loaded as a true variable font: omitting `weight` lets Next.js ship the full
+// axis range, which is required when we declare custom `axes` (opsz/SOFT).
+// We then drive weight via Tailwind's `font-*` utilities at the call site.
+const fraunces = Fraunces({
+  variable: "--font-display-stack",
+  subsets: ["latin"],
+  display: "swap",
+  style: ["normal", "italic"],
+  axes: ["opsz", "SOFT"],
+});
+
+const inter = Inter({
   variable: "--font-sans-stack",
   subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -59,7 +69,7 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={`${bricolage.variable} ${jetbrainsMono.variable} bg-ink text-foreground antialiased`}
+        className={`${fraunces.variable} ${inter.variable} ${jetbrainsMono.variable} bg-ink text-foreground antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

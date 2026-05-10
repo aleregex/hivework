@@ -2,8 +2,9 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 /**
- * Hivework wordmark — uses /public/logo.png (a honey hex with 6 satellite hexes
- * connected by edges, which literally reads as "hive + node graph").
+ * Hivework wordmark — display serif "Hivework" sitting next to the honey hex
+ * mark. No trailing slash, no lowercase quirk: the brand reads as a real
+ * product, not a CLI namespace.
  */
 export function Logo({
   className,
@@ -13,9 +14,9 @@ export function Logo({
   size?: "sm" | "md" | "lg";
 }) {
   const sizes = {
-    sm: { mark: 22, gap: "gap-2", text: "text-sm" },
-    md: { mark: 26, gap: "gap-2.5", text: "text-[15px]" },
-    lg: { mark: 36, gap: "gap-3", text: "text-lg" },
+    sm: { mark: 22, gap: "gap-2", text: "text-[15px]" },
+    md: { mark: 28, gap: "gap-2.5", text: "text-[18px]" },
+    lg: { mark: 38, gap: "gap-3", text: "text-[22px]" },
   } as const;
   const s = sizes[size];
 
@@ -24,12 +25,12 @@ export function Logo({
       <HexMark size={s.mark} />
       <span
         className={cn(
-          "font-mono font-medium tracking-tight text-foreground",
+          "font-display font-semibold leading-none tracking-[-0.015em] text-foreground",
           s.text
         )}
+        style={{ fontVariationSettings: '"opsz" 60, "SOFT" 50' }}
       >
-        hivework
-        <span className="text-honey">/</span>
+        Hivework
       </span>
     </div>
   );

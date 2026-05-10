@@ -73,10 +73,10 @@ export default function ContributePage({ params }: PageProps) {
       <div className="mx-auto max-w-2xl">
         <Link
           href={`/c/${id}`}
-          className="inline-flex items-center gap-1.5 font-mono text-[11px] text-muted transition-colors hover:text-foreground"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface/60 px-3 text-[13px] font-medium text-fg-soft transition-colors hover:border-honey/40 hover:bg-surface hover:text-foreground"
         >
-          <ArrowLeft className="h-3 w-3" />
-          back to {campaign?.brand ?? "campaign"}
+          <ArrowLeft className="h-4 w-4" />
+          Back to {campaign?.brand ?? "campaign"}
         </Link>
 
         <header className="mt-3 flex flex-col gap-2 border-b border-line pb-5">
@@ -101,7 +101,7 @@ export default function ContributePage({ params }: PageProps) {
           <div>
             <p className="inline-flex items-center gap-1.5 text-sm font-medium">
               <Sparkles className="h-3.5 w-3.5 text-honey" />
-              Want to publish a leaf instead?
+              Want to publish a post instead?
             </p>
             <p className="mt-0.5 font-mono text-[11px] text-muted">
               Pick a path visually on the tree, get a QR + ref-link instantly.

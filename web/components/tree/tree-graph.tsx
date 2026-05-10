@@ -121,7 +121,7 @@ const LEVEL_LABEL: Record<number, string> = {
   1: "hook",
   2: "audio",
   3: "visual",
-  4: "leaf",
+  4: "post",
 };
 
 const LEVEL_FILL: Record<number, string> = {

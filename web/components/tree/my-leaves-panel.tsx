@@ -45,7 +45,7 @@ export function MyLeavesPanel({ campaignId }: Props) {
         <div>
           <p className="text-sm font-medium">Connect your wallet</p>
           <p className="mt-1 text-xs text-muted">
-            We&apos;ll show every leaf you&apos;ve published in this campaign,
+            We&apos;ll show every post you&apos;ve published in this campaign,
             with live click + conversion stats.
           </p>
         </div>
@@ -61,7 +61,7 @@ export function MyLeavesPanel({ campaignId }: Props) {
           <ImageIcon className="h-4 w-4 text-muted" />
         </span>
         <div>
-          <p className="text-sm font-medium">No leaves yet in this campaign</p>
+          <p className="text-sm font-medium">No posts yet in this campaign</p>
           <p className="mt-1 text-xs text-muted">
             Use the <span className="text-honey">publish</span> tab to compose a
             path and generate your first ref-link.
@@ -77,7 +77,7 @@ export function MyLeavesPanel({ campaignId }: Props) {
     <aside className="flex h-full flex-col gap-4 rounded-lg border border-line bg-surface p-5">
       <header>
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-honey">
-          your leaves · this campaign
+          your posts · this campaign
         </p>
         <h3 className="mt-1.5 text-base font-semibold leading-tight">
           {leaves.length} active{" "}

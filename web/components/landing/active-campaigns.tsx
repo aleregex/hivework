@@ -31,13 +31,13 @@ export function ActiveCampaigns() {
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex max-w-xl flex-col gap-4">
             <SectionLabel id="§2">active hives</SectionLabel>
-            <h2 className="text-balance text-4xl font-semibold leading-tight tracking-[-0.02em] sm:text-5xl">
+            <h2 className="text-balance text-4xl leading-[1.1] sm:text-5xl">
               Live campaigns.{" "}
-              <span className="text-honey">Open for contribution.</span>
+              <span className="italic text-honey">Open for contribution.</span>
             </h2>
             <p className="text-base leading-relaxed text-fg-soft">
               Every hive listed below has USDC locked on devnet. Add a node,
-              fork a hook, or publish a leaf — earn proportionally when
+              fork a hook, or publish a post — earn proportionally when
               conversions land.
             </p>
           </div>
@@ -49,8 +49,8 @@ export function ActiveCampaigns() {
           </Button>
         </div>
 
-        <div className="mt-12 grid gap-px overflow-hidden rounded-lg border border-line bg-line md:grid-cols-2 lg:grid-cols-3">
-          {MOCK_CAMPAIGNS.map((campaign, i) => {
+        <div className="mt-12 grid gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-2 lg:grid-cols-3">
+          {MOCK_CAMPAIGNS.slice(0, 3).map((campaign, i) => {
             const progress = Math.round(
               (campaign.spentUsdc / campaign.poolUsdc) * 100
             );
@@ -86,7 +86,7 @@ export function ActiveCampaigns() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="truncate text-lg font-semibold tracking-tight">
+                        <h3 className="truncate text-[20px] leading-tight">
                           {campaign.brand}
                         </h3>
                         {campaign.hot && (
@@ -129,7 +129,7 @@ export function ActiveCampaigns() {
                   {/* Stats grid */}
                   <div className="grid grid-cols-3 divide-x divide-line/60 rounded-md border border-line/60 bg-ink-2/40">
                     <Stat label="nodes" value={campaign.nodes} />
-                    <Stat label="leaves" value={campaign.leaves} />
+                    <Stat label="posts" value={campaign.leaves} />
                     <Stat
                       label="conv"
                       value={campaign.conversions}

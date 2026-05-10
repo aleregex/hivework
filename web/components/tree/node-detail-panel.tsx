@@ -1,6 +1,16 @@
 "use client";
 
-import { Bot, Coins, ExternalLink, GitFork, User, X, Zap } from "lucide-react";
+import {
+  Bot,
+  Coins,
+  ExternalLink,
+  GitFork,
+  Plus,
+  Sparkles,
+  User,
+  X,
+  Zap,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { TreeNode } from "@/lib/mocks/tree";
@@ -10,20 +20,35 @@ const LEVEL_LABEL: Record<number, string> = {
   1: "L1 · hook",
   2: "L2 · audio",
   3: "L3 · visual",
-  4: "L4 · leaf",
+  4: "L4 · post",
+};
+
+const NEXT_LEVEL_LABEL: Record<number, string> = {
+  0: "hook",
+  1: "audio",
+  2: "visual",
+  3: "post",
 };
 
 type Props = {
   node: TreeNode;
   onClose: () => void;
   onSimulateConversion?: (nodeId: string) => void;
+  /** Open the AddNodeDialog with this node as the parent. */
+  onAddChild?: (parent: TreeNode) => void;
 };
 
 export function NodeDetailPanel({
   node,
   onClose,
   onSimulateConversion,
+  onAddChild,
 }: Props) {
+  // L4 is a published post — it has no children. Everything else can spawn one.
+  const canAddChild = node.level < 4;
+  const nextChildLabel = NEXT_LEVEL_LABEL[node.level];
+  // L3 children are posts, which open the publish flow rather than the form.
+  const childIsPost = node.level === 3;
   return (
     <aside className="flex h-full flex-col gap-4 rounded-lg border border-line bg-surface p-5">
       <header className="flex items-start justify-between gap-3">
@@ -116,6 +141,27 @@ export function NodeDetailPanel({
             payouts up the path.
           </p>
         </div>
+      )}
+
+      {/* Primary CTA — grow the tree from this node. The action shape changes
+          based on what level the child would be: nodes for L1/L2/L3, a post
+          (publish flow) when the parent is L3. */}
+      {canAddChild && onAddChild && (
+        <Button
+          variant="honey"
+          size="md"
+          onClick={() => onAddChild(node)}
+          className="w-full"
+        >
+          {childIsPost ? (
+            <Sparkles className="h-4 w-4" />
+          ) : (
+            <Plus className="h-4 w-4" />
+          )}
+          {childIsPost
+            ? "Publish a post from here"
+            : `Add ${nextChildLabel} under this node`}
+        </Button>
       )}
 
       {/* Demo affordance — fire a conversion through this exact node */}

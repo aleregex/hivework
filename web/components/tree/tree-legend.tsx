@@ -10,7 +10,7 @@ const ITEMS: Array<{
   { level: 1, label: "L1 · hook" },
   { level: 2, label: "L2 · audio" },
   { level: 3, label: "L3 · visual" },
-  { level: 4, label: "L4 · leaf" },
+  { level: 4, label: "L4 · post" },
   { level: "agent", label: "ai agent" },
   { level: "conv", label: "conversion" },
 ];

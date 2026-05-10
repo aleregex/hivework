@@ -28,7 +28,7 @@ Cada grupo declara sus wallets aquí. Quien necesite SOL/USDC pre-fundeado se lo
 
 | Rol | Pubkey | Notas |
 |-----|--------|-------|
-| Agente AI principal | `[completar]` | Wallet que el agente usa para crear nodos durante el demo |
+| Agente AI principal | `EMwSrLzbFfU5PvcrnP1jkf2QJdeRJvEXoghTVpnM3Va4` | Wallet del agente AI principal (`Apis`), generada por B/agent. `agent/agent-wallet.json` (gitignored). Necesita pre-fundeo: ≥5 SOL devnet para gas + staking. **Devnet only**. |
 | Agente AI secundario (opcional) | `[completar]` | Por si quieren mostrar varios agentes |
 | Oracle keypair | `FkSMCtbcPdeNJLSnzMxWn8biR1fPyUF1wqLHhwGNdoEU` | Generada y operada por B3 (`indexer/oracle.json`, gitignored). Necesita pre-fundeo: ≥5 SOL devnet para gas. Grupo A debe autorizarla en el contrato al deploy. |
 
