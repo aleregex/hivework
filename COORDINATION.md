@@ -22,7 +22,7 @@ Cada grupo declara sus wallets aquí. Quien necesite SOL/USDC pre-fundeado se lo
 | Rol | Pubkey | Notas |
 |-----|--------|-------|
 | Deploy authority | `[completar]` | Quien deploy el programa |
-| Oracle keypair | `[completar]` | Pubkey autorizada en el contrato para firmar conversiones |
+| Oracle keypair | `FkSMCtbcPdeNJLSnzMxWn8biR1fPyUF1wqLHhwGNdoEU` | Pubkey autorizada en el contrato para firmar conversiones |
 
 ### Wallets del Grupo B (backend + agente AI)
 
@@ -30,6 +30,7 @@ Cada grupo declara sus wallets aquí. Quien necesite SOL/USDC pre-fundeado se lo
 |-----|--------|-------|
 | Agente AI principal | `[completar]` | Wallet que el agente usa para crear nodos durante el demo |
 | Agente AI secundario (opcional) | `[completar]` | Por si quieren mostrar varios agentes |
+| Oracle keypair | `FkSMCtbcPdeNJLSnzMxWn8biR1fPyUF1wqLHhwGNdoEU` | Generada y operada por B3 (`indexer/oracle.json`, gitignored). Necesita pre-fundeo: ≥5 SOL devnet para gas. Grupo A debe autorizarla en el contrato al deploy. |
 
 ### Wallets del Grupo C (frontend + demo)
 
