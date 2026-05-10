@@ -1,19 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, JetBrains_Mono } from "next/font/google";
+import { Bricolage_Grotesque, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./components/providers";
 
-// Geist as the display/UI face — sharp, technical, sized like a CLI.
-// JetBrains Mono is reserved for numbers, IDs, addresses, hex paths —
-// anything that should read as "computed by the system, not written by a copywriter."
-const geist = Geist({
-  variable: "--font-geist",
+// Bricolage Grotesque — wide, warm, geometric grotesque. Carries enough
+// personality to feel branded (not "default SaaS Inter") while staying
+// readable. Wider letterforms align with the hexagonal motif and prevent
+// the anemic feel that Geist/Manrope had at small sizes.
+//
+// JetBrains Mono — numbers, IDs, addresses, hex paths.
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-sans-stack",
   subsets: ["latin"],
   display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains",
+  variable: "--font-mono-stack",
   subsets: ["latin"],
   display: "swap",
 });
@@ -29,16 +33,33 @@ export const metadata: Metadata = {
   },
 };
 
+// Inline theme bootstrap. Runs before paint so we don't flash the wrong palette.
+// Default = dark; only flip to light if the user explicitly chose it.
+const THEME_BOOTSTRAP = `
+(function () {
+  try {
+    var stored = localStorage.getItem('hivework-theme');
+    var resolved = stored === 'light' ? 'light' : 'dark';
+    document.documentElement.classList.toggle('theme-light', resolved === 'light');
+    document.documentElement.dataset.themePref = resolved;
+    document.documentElement.dataset.theme = resolved;
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+      </head>
       <body
         suppressHydrationWarning
-        className={`${geist.variable} ${jetbrainsMono.variable} bg-ink text-foreground antialiased`}
+        className={`${bricolage.variable} ${jetbrainsMono.variable} bg-ink text-foreground antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

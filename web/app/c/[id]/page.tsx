@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, GitFork, Plus, Sparkles, Zap } from "lucide-react";
+import { ArrowLeft, Plus, Zap } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { TreeView } from "@/components/tree/tree-view";
 import { MOCK_CAMPAIGNS } from "@/lib/mocks/campaigns";
 import { MOCK_TREE } from "@/lib/mocks/tree";
@@ -26,109 +25,90 @@ export default async function CampaignDetailPage({ params }: PageProps) {
     (sum, n) => sum + n.conversions,
     0
   );
+  const closesInDays = Math.floor(campaign.hoursLeft / 24);
+  const closesInHours = campaign.hoursLeft % 24;
 
   return (
     <AppShell>
-      <Link
-        href="/campaigns"
-        className="inline-flex items-center gap-2 text-xs text-muted transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        Back to campaigns
-      </Link>
+      {/* Single-row breadcrumb + campaign id */}
+      <div className="flex items-center gap-3 font-mono text-[11px]">
+        <Link
+          href="/campaigns"
+          className="inline-flex items-center gap-1.5 text-muted transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          campaigns
+        </Link>
+        <span className="text-faint">/</span>
+        <span className="uppercase tracking-[0.18em] text-honey">
+          {campaign.id}
+        </span>
+      </div>
 
-      {/* Header */}
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-semibold tracking-tight">
-              {campaign.brand}
-            </h1>
-            <Badge variant="live">live</Badge>
-            {campaign.hot && (
-              <Badge variant="sting">
-                <Zap className="mr-1 h-3 w-3" />
-                Hot
-              </Badge>
-            )}
-          </div>
-          <p className="mt-1 text-sm text-muted">
-            @{campaign.brandHandle} · {campaign.product}
-          </p>
+      {/* Hero row — brand left, stats right, all on one line on desktop */}
+      <header className="mt-3 flex flex-wrap items-center justify-between gap-x-8 gap-y-3 border-b border-line pb-4">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1.5">
+          <h1 className="text-[28px] font-bold leading-none tracking-[-0.025em] sm:text-[32px]">
+            {campaign.brand}
+          </h1>
+          <span className="font-mono text-[12px] text-muted">
+            @{campaign.brandHandle}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-live/40 bg-live/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-live">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-live opacity-70" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-live" />
+            </span>
+            live
+          </span>
+          {campaign.hot && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-sting/40 bg-sting/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-sting">
+              <Zap className="h-2.5 w-2.5" />
+              hot
+            </span>
+          )}
+          <span className="basis-full text-sm text-fg-soft">
+            {campaign.product}
+          </span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/c/${campaign.id}/contribute?type=node`}>
+
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <Stat label="pool" value={`$${campaign.poolUsdc}`} accent="honey" />
+          <Stat label="paid" value={`$${campaign.spentUsdc}`} />
+          <Stat label="nodes" value={totalNodes} />
+          <Stat label="leaves" value={totalLeaves} />
+          <Stat label="conv" value={totalConversions} accent="sting" />
+          <Button asChild variant="outline" size="sm" className="ml-1">
+            <Link href={`/c/${campaign.id}/contribute`}>
               <Plus className="h-4 w-4" />
               Add node
             </Link>
           </Button>
-          <Button asChild variant="honey" size="sm">
-            <Link href={`/c/${campaign.id}/contribute?type=leaf`}>
-              <Sparkles className="h-4 w-4" />
-              Publish leaf
-            </Link>
-          </Button>
         </div>
-      </div>
+      </header>
 
-      {/* Stats strip */}
-      <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-wax bg-wax sm:grid-cols-5">
-        <Stat
-          label="Pool USDC"
-          value={`$${campaign.poolUsdc}`}
-          accent="honey"
-        />
-        <Stat
-          label="Paid out"
-          value={`$${campaign.spentUsdc}`}
-          accent="honey"
-        />
-        <Stat label="Nodes" value={totalNodes} accent="default" />
-        <Stat label="Leaves" value={totalLeaves} accent="default" />
-        <Stat label="Conversions" value={totalConversions} accent="sting" />
-      </div>
-
-      {/* Pool progress */}
-      <div className="mt-6 rounded-xl border border-wax bg-comb p-5">
-        <div className="flex items-baseline justify-between font-mono text-xs uppercase tracking-wider text-muted">
-          <span>Pool consumed</span>
-          <span className="text-honey">{progress}%</span>
-        </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-wax">
+      {/* Pool bar — one slim line */}
+      <div className="mt-3 flex flex-wrap items-center gap-3 font-mono text-[11px]">
+        <span className="uppercase tracking-[0.18em] text-muted">pool</span>
+        <div className="relative h-1 min-w-[160px] flex-1 overflow-hidden rounded-full bg-line">
           <div
-            className="h-full rounded-full bg-honey transition-all"
+            className="absolute inset-y-0 left-0 rounded-full bg-honey"
             style={{ width: `${progress}%` }}
           />
         </div>
-        <p className="mt-3 text-xs text-muted">
-          Closes in {Math.floor(campaign.hoursLeft / 24)}d{" "}
-          {campaign.hoursLeft % 24}h. After that the smart contract distributes
-          the remaining pool proportionally to the genealogical paths that
-          converted.
-        </p>
+        <span className="tabular text-honey">{progress}%</span>
+        <span className="text-faint">·</span>
+        <span className="text-muted">
+          closes in{" "}
+          <span className="tabular text-foreground">
+            {closesInDays}d {closesInHours}h
+          </span>
+        </span>
       </div>
 
-      {/* Interactive tree */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold tracking-tight">
-            Tree of decisions
-          </h2>
-          <Badge variant="outline">
-            <GitFork className="mr-1 h-3 w-3" />
-            {totalNodes + totalLeaves} elements
-          </Badge>
-        </div>
-        <p className="mt-1 text-xs text-muted">
-          Click any node to inspect it. The{" "}
-          <span className="text-sting">orange particles</span> on the links show
-          where conversions are flowing in real time.
-        </p>
-
-        <div className="mt-4">
-          <TreeView initialNodes={MOCK_TREE} />
-        </div>
+      {/* Tree — straight to the canvas */}
+      <div className="mt-4">
+        <TreeView initialNodes={MOCK_TREE} campaignId={campaign.id} />
       </div>
     </AppShell>
   );
@@ -141,7 +121,7 @@ function Stat({
 }: {
   label: string;
   value: string | number;
-  accent: "honey" | "sting" | "default";
+  accent?: "honey" | "sting";
 }) {
   const color =
     accent === "honey"
@@ -150,12 +130,12 @@ function Stat({
         ? "text-sting"
         : "text-foreground";
   return (
-    <div className="flex flex-col items-center gap-1 bg-comb px-4 py-4">
-      <span className={`font-mono text-xl font-semibold ${color}`}>
-        {value}
-      </span>
-      <span className="text-[10px] uppercase tracking-wider text-muted">
+    <div className="flex items-baseline gap-1.5 leading-none">
+      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
         {label}
+      </span>
+      <span className={`font-mono text-lg font-bold tabular ${color}`}>
+        {value}
       </span>
     </div>
   );

@@ -2,44 +2,82 @@
 
 /*
  * Hivework — Honeycomb OS
- * The interface is treated like a node-graph editor, not a marketing site.
  *
- *  Single accent: --honey (#FFB020). Sting orange is reserved for the
- *  "money flowing in" semantic (cascade, conversions). Live green is the
- *  only other color — for "live on-chain". Everything else is grayscale,
- *  cool-tilted (blue-leaning charcoal), so the honey reads loud.
+ *  The whole palette is honey/cream-warmth, taken straight from the logo
+ *  (deep honey center hex + lighter satellite hexes on parchment). No cool
+ *  grays anywhere — every neutral is warm-tinted so the page reads like
+ *  honeycomb regardless of which surface you're on.
+ *
+ *  Default = dark warm. Light theme = parchment cream.
  */
 
 :root {
-  /* Backgrounds (cool charcoal, not warm) */
-  --ink: #0a0b0d;
-  --ink-2: #0e1014;
-  --surface: #14171c;
-  --surface-2: #1a1e24;
+  /* Backgrounds — warm dark, never neutral charcoal */
+  --ink: #1a130a;
+  --ink-2: #221808;
+  --surface: #2a1f10;
+  --surface-2: #34270f;
 
-  /* Borders */
-  --line: #232830;
-  --line-strong: #2e353d;
+  /* Borders — warm tan */
+  --line: #3f2f15;
+  --line-strong: #553f1c;
 
-  /* Text */
-  --fg: #ecf0f3;
-  --fg-soft: #b6bcc4;
-  --fg-muted: #7a8290;
-  --fg-faint: #4f5662;
+  /* Text — cream on dark */
+  --fg: #fbf1dc;
+  --fg-soft: #d4bd93;
+  --fg-muted: #a78a64;
+  --fg-faint: #6e5c44;
 
-  /* Accent (the honey) */
-  --honey: #ffb020;
-  --honey-soft: #ffc857;
-  --honey-deep: #c98800;
+  /* Honey — vibrant, takes the central place. Calibrated against the logo. */
+  --honey: #f2a526;
+  --honey-soft: #ffc865;
+  --honey-deep: #c77f12;
 
   /* Semantic signals */
-  --sting: #ff6b35; /* money in / conversions / cascade */
-  --live: #34d399; /* live on-chain */
+  --sting: #ff6b35;
+  --live: #4ed188;
   --destructive: #ef4444;
 
+  /* RGBs for rgb() var() interpolation */
+  --honey-rgb: 242 165 38;
+  --sting-rgb: 255 107 53;
+  --live-rgb: 78 209 136;
+
   --radius: 0.5rem;
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --font-sans: var(--font-sans-stack), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-stack), ui-monospace, monospace;
+
+  color-scheme: dark;
+}
+
+/* ---------------- Light theme = parchment cream ---------------- */
+.theme-light {
+  --ink: #fbf6e9; /* parchment background */
+  --ink-2: #f4ead0;
+  --surface: #ffffff;
+  --surface-2: #f7eed3;
+
+  --line: #e8dab8; /* warm tan border */
+  --line-strong: #cfb78e;
+
+  --fg: #1f1810;
+  --fg-soft: #4a3a25;
+  --fg-muted: #6e5942;
+  --fg-faint: #9d8869;
+
+  /* Honey on cream — push toward the deeper logo center color so it sits */
+  --honey: #c77f12;
+  --honey-soft: #f2a526;
+  --honey-deep: #7a4d08;
+
+  --sting: #c4441a;
+  --live: #15894c;
+
+  --honey-rgb: 199 127 18;
+  --sting-rgb: 196 68 26;
+  --live-rgb: 21 137 76;
+
+  color-scheme: light;
 }
 
 @theme inline {
@@ -50,8 +88,7 @@
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
 
-  /* Legacy aliases used by existing tree/cascade code. Kept so the redesign
-   * doesn't blow up the demo components. They map to the new system. */
+  /* Legacy aliases for older components */
   --color-bg1: var(--ink);
   --color-bg2: var(--ink-2);
   --color-comb: var(--surface);
@@ -76,7 +113,7 @@
   --color-honey: var(--honey);
   --color-honey-soft: var(--honey-soft);
   --color-honey-deep: var(--honey-deep);
-  --color-pollen: var(--honey-soft); /* legacy alias */
+  --color-pollen: var(--honey-soft);
   --color-primary: var(--honey);
   --color-primary-foreground: var(--ink);
 
@@ -105,11 +142,34 @@
   body {
     @apply bg-ink text-foreground antialiased;
     font-family: var(--font-sans);
-    font-feature-settings: "ss01", "cv11";
-    color-scheme: dark;
+    /* Bricolage Grotesque has presence at 500 — we use 500 base, 700 for
+     * headings, 800 for the heaviest display moments. The variable axis
+     * also lets us hit "between" weights if needed. */
+    font-weight: 500;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.012em;
   }
 
-  /* Numbers feel "computed" — same width per glyph, slightly larger optical size. */
+  h1,
+  h2,
+  h3 {
+    font-weight: 700;
+    letter-spacing: -0.025em;
+  }
+
+  /* Mono — tabular numbers + slashed zero for code clarity */
+  .font-mono,
+  code,
+  pre,
+  kbd,
+  samp {
+    font-weight: 500;
+    font-feature-settings: "zero" on, "ss01" on;
+    letter-spacing: 0;
+  }
+
   .tabular {
     font-variant-numeric: tabular-nums;
   }
@@ -121,47 +181,40 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* Honeycomb hex grid — used as a background motif, not a decoration. */
-/* Two staggered hex columns make a tileable 60×52 pattern.            */
+/* Honeycomb hex grid background — uses the warm honey stroke. */
 /* ------------------------------------------------------------------ */
 .bg-hex-grid {
   background-color: var(--ink);
-  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52' fill='none' stroke='%23ffb020' stroke-opacity='0.07' stroke-width='1'%3E%3Cpath d='M15 1 L29 9 L29 25 L15 33 L1 25 L1 9 Z'/%3E%3Cpath d='M45 -25 L59 -17 L59 -1 L45 7 L31 -1 L31 -17 Z'/%3E%3Cpath d='M45 27 L59 35 L59 51 L45 59 L31 51 L31 35 Z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52' fill='none' stroke='%23f2a526' stroke-opacity='0.10' stroke-width='1'%3E%3Cpath d='M15 1 L29 9 L29 25 L15 33 L1 25 L1 9 Z'/%3E%3Cpath d='M45 -25 L59 -17 L59 -1 L45 7 L31 -1 L31 -17 Z'/%3E%3Cpath d='M45 27 L59 35 L59 51 L45 59 L31 51 L31 35 Z'/%3E%3C/svg%3E");
   background-position: 0 0;
 }
-
-.bg-hex-grid-dense {
-  background-color: var(--ink);
-  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='34' viewBox='0 0 40 34' fill='none' stroke='%23ffb020' stroke-opacity='0.05' stroke-width='1'%3E%3Cpath d='M10 0.5 L19.5 6 L19.5 17 L10 22.5 L0.5 17 L0.5 6 Z'/%3E%3Cpath d='M30 -16.5 L39.5 -11 L39.5 0 L30 5.5 L20.5 0 L20.5 -11 Z'/%3E%3Cpath d='M30 17.5 L39.5 23 L39.5 34 L30 39.5 L20.5 34 L20.5 23 Z'/%3E%3C/svg%3E");
+.theme-light .bg-hex-grid {
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52' viewBox='0 0 60 52' fill='none' stroke='%23c77f12' stroke-opacity='0.13' stroke-width='1'%3E%3Cpath d='M15 1 L29 9 L29 25 L15 33 L1 25 L1 9 Z'/%3E%3Cpath d='M45 -25 L59 -17 L59 -1 L45 7 L31 -1 L31 -17 Z'/%3E%3Cpath d='M45 27 L59 35 L59 51 L45 59 L31 51 L31 35 Z'/%3E%3C/svg%3E");
 }
 
-/* Dot grid — Figma/Excalidraw vibe. Used on internal app sections. */
+/* Dot grid — used as the tree canvas background */
 .bg-dot-grid {
-  background-color: var(--ink);
+  background-color: var(--ink-2);
   background-image: radial-gradient(
-    rgba(124, 132, 144, 0.18) 1px,
+    rgb(var(--honey-rgb) / 0.18) 1px,
     transparent 1px
   );
   background-size: 22px 22px;
 }
 
-/* ------------------------------------------------------------------ */
-/* Glows used by tree nodes and the cascade animation.                */
-/* ------------------------------------------------------------------ */
+/* Glows for tree nodes and cascade animation */
 .glow-honey {
   box-shadow:
-    0 0 0 1px rgba(255, 176, 32, 0.45),
-    0 0 28px -4px rgba(255, 176, 32, 0.55);
+    0 0 0 1px rgb(var(--honey-rgb) / 0.45),
+    0 0 28px -4px rgb(var(--honey-rgb) / 0.55);
 }
 .glow-sting {
   box-shadow:
-    0 0 0 1px rgba(255, 107, 53, 0.45),
-    0 0 28px -4px rgba(255, 107, 53, 0.55);
+    0 0 0 1px rgb(var(--sting-rgb) / 0.45),
+    0 0 28px -4px rgb(var(--sting-rgb) / 0.55);
 }
 
-/* ------------------------------------------------------------------ */
-/* Wire — thin gradient line used as a section divider / connector.   */
-/* ------------------------------------------------------------------ */
+/* Wires — divider lines */
 .wire-x {
   background-image: linear-gradient(
     to right,
@@ -181,7 +234,6 @@
   width: 1px;
 }
 
-/* Animated honey-tinted scanline used during the cascade. */
 @keyframes scan-x {
   0% {
     transform: translateX(-100%);
@@ -195,7 +247,7 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* Wallet adapter overrides — match the Honeycomb OS palette.         */
+/* Wallet adapter overrides — honey button, native icons (no filter). */
 /* ------------------------------------------------------------------ */
 .hivework-wallet .wallet-adapter-button {
   background-color: var(--honey);
@@ -203,7 +255,7 @@
   font-family: var(--font-sans);
   font-weight: 600;
   font-size: 0.8125rem;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   height: 2.25rem;
   padding: 0 0.875rem;
   border-radius: 0.375rem;
@@ -216,10 +268,6 @@
 }
 .hivework-wallet .wallet-adapter-button-trigger {
   background-color: var(--honey);
-}
-.hivework-wallet .wallet-adapter-button-end-icon,
-.hivework-wallet .wallet-adapter-button-start-icon {
-  filter: brightness(0);
 }
 .hivework-wallet .wallet-adapter-modal-wrapper {
   background-color: var(--surface);

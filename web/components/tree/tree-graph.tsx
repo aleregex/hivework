@@ -29,10 +29,10 @@ import type { GraphData, TreeNode } from "@/lib/mocks/tree";
 
 // ---------- Layout constants ---------- //
 
-const X_GAP = 132; // horizontal slot width per leaf-equivalent
-const Y_GAP = 150; // vertical distance between levels
-const PADDING = 80; // outer margin around the full tree
-const LABEL_WIDTH = 120; // px — labels truncate to fit this width
+const X_GAP = 120; // horizontal slot width per leaf-equivalent
+const Y_GAP = 118; // vertical distance between levels — tightened
+const PADDING = 56; // outer margin around the full tree
+const LABEL_WIDTH = 112; // px — labels truncate to fit this width
 
 // ---------- Layout ---------- //
 
@@ -156,10 +156,10 @@ function hexPath(size: number): string {
 }
 
 function hexSize(node: TreeNode): number {
-  if (node.level === 0) return 30;
-  if (node.level === 4) return 14;
+  if (node.level === 0) return 26;
+  if (node.level === 4) return 13;
   // Slightly grow with forks so popular branches stand out
-  return 18 + Math.log(node.forks + 1) * 1.6;
+  return 16 + Math.log(node.forks + 1) * 1.4;
 }
 
 // ---------- Component ---------- //
@@ -170,6 +170,14 @@ type Props = {
   onSelect: (node: TreeNode | null) => void;
   pulsingNodeIds?: Set<string>;
   cascadeMode?: boolean;
+  /**
+   * When set, only nodes in this set are clickable + rendered at full opacity.
+   * The rest are dimmed. Used by the publish-leaf flow so the influencer can
+   * see the whole tree but the cursor only "wins" on the eligible step.
+   */
+  selectableNodeIds?: Set<string>;
+  /** IDs that should render with a confirmed/locked-in look (publish flow steps). */
+  highlightedNodeIds?: Set<string>;
 };
 
 export function TreeGraph({
@@ -178,6 +186,8 @@ export function TreeGraph({
   onSelect,
   pulsingNodeIds,
   cascadeMode = false,
+  selectableNodeIds,
+  highlightedNodeIds,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 800, h: 560 });
@@ -295,7 +305,7 @@ export function TreeGraph({
   }, [data.nodes, layout.positions]);
 
   return (
-    <div ref={containerRef} className="bg-dot-grid relative h-[600px] w-full">
+    <div ref={containerRef} className="bg-dot-grid relative h-[640px] w-full">
       {/* Toolbar — controls in the corner like a graph editor */}
       <Toolbar
         scale={view.scale}
@@ -386,6 +396,10 @@ export function TreeGraph({
             {data.nodes.map((n) => {
               const pos = layout.positions.get(n.id);
               if (!pos) return null;
+              const dimmed =
+                selectableNodeIds !== undefined &&
+                !selectableNodeIds.has(n.id) &&
+                !(highlightedNodeIds?.has(n.id) ?? false);
               return (
                 <Node
                   key={n.id}
@@ -394,7 +408,19 @@ export function TreeGraph({
                   selected={selectedNodeId === n.id}
                   pulsing={pulsingNodeIds?.has(n.id) ?? false}
                   cascade={cascadeMode}
-                  onClick={() => onSelect(n)}
+                  dimmed={dimmed}
+                  highlighted={highlightedNodeIds?.has(n.id) ?? false}
+                  selectable={selectableNodeIds?.has(n.id) ?? false}
+                  hasSelectableMode={selectableNodeIds !== undefined}
+                  onClick={() => {
+                    if (
+                      selectableNodeIds !== undefined &&
+                      !selectableNodeIds.has(n.id)
+                    ) {
+                      return;
+                    }
+                    onSelect(n);
+                  }}
                 />
               );
             })}
@@ -429,6 +455,10 @@ function Node({
   selected,
   pulsing,
   cascade,
+  dimmed,
+  highlighted,
+  selectable,
+  hasSelectableMode,
   onClick,
 }: {
   node: TreeNode;
@@ -436,13 +466,26 @@ function Node({
   selected: boolean;
   pulsing: boolean;
   cascade: boolean;
+  dimmed: boolean;
+  highlighted: boolean;
+  selectable: boolean;
+  hasSelectableMode: boolean;
   onClick: () => void;
 }) {
   const size = hexSize(node);
   const fill = LEVEL_FILL[node.level];
   const stroke = LEVEL_STROKE[node.level];
   const text = LEVEL_TEXT[node.level];
-  const showGlow = selected || pulsing || cascade || node.conversions > 0;
+  const showGlow =
+    !dimmed &&
+    (selected || pulsing || cascade || highlighted || node.conversions > 0);
+  const cursor = dimmed
+    ? "cursor-not-allowed"
+    : selectable
+      ? "cursor-pointer"
+      : hasSelectableMode
+        ? "cursor-default"
+        : "cursor-pointer";
 
   return (
     <g
@@ -452,7 +495,8 @@ function Node({
         e.stopPropagation();
         onClick();
       }}
-      className="cursor-pointer"
+      className={cursor}
+      style={{ opacity: dimmed ? 0.22 : 1, transition: "opacity 0.25s ease" }}
     >
       {/* Outer glow ring — only for nodes that need to read "important" */}
       {showGlow && (
@@ -462,12 +506,24 @@ function Node({
           stroke={
             pulsing
               ? "var(--sting)"
-              : selected
-                ? "var(--honey-soft)"
-                : "var(--honey)"
+              : highlighted
+                ? "var(--honey)"
+                : selected
+                  ? "var(--honey-soft)"
+                  : "var(--honey)"
           }
-          strokeOpacity={pulsing ? 0.7 : selected ? 0.6 : cascade ? 0.5 : 0.25}
-          strokeWidth={pulsing || cascade ? 2 : 1.2}
+          strokeOpacity={
+            pulsing
+              ? 0.7
+              : highlighted
+                ? 0.85
+                : selected
+                  ? 0.6
+                  : cascade
+                    ? 0.5
+                    : 0.25
+          }
+          strokeWidth={pulsing || cascade || highlighted ? 2 : 1.2}
           filter="url(#hex-glow)"
         >
           {(pulsing || cascade) && (
@@ -481,12 +537,36 @@ function Node({
         </path>
       )}
 
+      {/* Selectable pulse — a soft breathing ring on eligible nodes during publish flow */}
+      {selectable && !highlighted && (
+        <path
+          d={hexPath(size + 5)}
+          fill="none"
+          stroke="var(--honey)"
+          strokeWidth={1.5}
+          strokeDasharray="3 3"
+        >
+          <animate
+            attributeName="stroke-opacity"
+            values="0.4;0.9;0.4"
+            dur="1.6s"
+            repeatCount="indefinite"
+          />
+        </path>
+      )}
+
       {/* Main hex */}
       <path
         d={hexPath(size)}
         fill={fill}
-        stroke={selected ? "var(--foreground)" : stroke}
-        strokeWidth={selected ? 2 : 1}
+        stroke={
+          highlighted
+            ? "var(--foreground)"
+            : selected
+              ? "var(--foreground)"
+              : stroke
+        }
+        strokeWidth={highlighted ? 2.5 : selected ? 2 : 1}
       />
 
       {/* Inner small hex for the root (visual signature) */}

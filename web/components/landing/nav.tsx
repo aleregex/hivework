@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { WalletConnectButton } from "@/components/wallet-connect-button";
 
 export function Nav() {
@@ -30,6 +31,7 @@ export function Nav() {
           >
             <span className="text-honey">›</span>&nbsp;new campaign
           </Link>
+          <ThemeToggle />
           <WalletConnectButton />
         </div>
       </div>
