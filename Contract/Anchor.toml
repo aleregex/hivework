@@ -1,17 +1,14 @@
 [toolchain]
 
 [features]
-seeds = false
+resolution = true
 skip-lint = false
+
+[programs.devnet]
+hivework = "8wsaheyJ3e1e8zRUFX22apjvutNcaEagTyk21N75Ybz8"
 
 [programs.localnet]
 hivework = "8qT4Yoj9ZYdvFUZm7Pz3YBTA8idQ5VgbZ4Cdcypfw3Ue"
-
-[programs.devnet]
-hivework = "8qT4Yoj9ZYdvFUZm7Pz3YBTA8idQ5VgbZ4Cdcypfw3Ue"
-
-[registry]
-url = "https://api.apr.dev"
 
 [provider]
 cluster = "devnet"
@@ -19,3 +16,5 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[hooks]

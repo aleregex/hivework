@@ -10,7 +10,7 @@ use errors::*;
 use events::*;
 use state::*;
 
-declare_id!("8qT4Yoj9ZYdvFUZm7Pz3YBTA8idQ5VgbZ4Cdcypfw3Ue");
+declare_id!("8wsaheyJ3e1e8zRUFX22apjvutNcaEagTyk21N75Ybz8");
 
 #[program]
 pub mod hivework {
@@ -85,15 +85,11 @@ pub mod hivework {
         if level == 1 {
             node.parent_node = None;
         } else {
-            let parent_info = ctx.accounts.parent_node.as_ref().unwrap();
-            // Need to deserialize parent to check level
-            let parent_data = parent_info.try_borrow_data()?;
-            let parent_level = parent_data[8 + 32 + 32 + 33]; // Offset to level byte
-            require!(parent_level == level - 1, HiveworkError::InvalidParentNode);
-            node.parent_node = Some(parent_info.key());
-            
-            // For MVP, we don't dynamically update all ancestors forks_count directly here to save compute,
-            // or we could do it since it's only 2 max parents.
+            let parent = ctx.accounts.parent_node.as_mut()
+                .ok_or(HiveworkError::InvalidParentNode)?;
+            require!(parent.level == level - 1, HiveworkError::InvalidParentNode);
+            node.parent_node = Some(parent.key());
+            parent.forks_count = parent.forks_count.checked_add(1).unwrap();
         }
 
         emit!(NodeCreated {
@@ -280,6 +276,25 @@ pub mod hivework {
 
         Ok(())
     }
+
+    pub fn claim_leaf_payout(
+        ctx: Context<ClaimLeafPayout>,
+    ) -> Result<()> {
+        let leaf = &mut ctx.accounts.leaf;
+        let amount = leaf.claimable_usdc;
+        require!(amount > 0, HiveworkError::InsufficientFunds);
+
+        leaf.claimable_usdc = 0;
+
+        if leaf.conversions_count > 0 && leaf.stake_locked > 0 {
+            let stake = leaf.stake_locked;
+            leaf.stake_locked = 0;
+            **leaf.to_account_info().try_borrow_mut_lamports()? -= stake;
+            **ctx.accounts.creator.to_account_info().try_borrow_mut_lamports()? += stake;
+        }
+
+        Ok(())
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -318,8 +333,8 @@ pub struct CreateNode<'info> {
     pub campaign: Account<'info, Campaign>,
     #[account(mut)]
     pub creator: Signer<'info>,
-    /// CHECK: Validated dynamically
-    pub parent_node: Option<UncheckedAccount<'info>>,
+    #[account(mut)]
+    pub parent_node: Option<Account<'info, Node>>,
     pub system_program: Program<'info, System>,
 }
 
@@ -393,9 +408,16 @@ pub struct CloseAndDistribute<'info> {
 
 #[derive(Accounts)]
 pub struct ClaimPayout<'info> {
-    #[account(mut)]
-    pub node: Account<'info, Node>, // Can be Node or Leaf, for simplicity just Node struct here
+    #[account(mut, has_one = creator)]
+    pub node: Account<'info, Node>,
     #[account(mut)]
     pub creator: Signer<'info>,
-    // SPL token accounts would go here
+}
+
+#[derive(Accounts)]
+pub struct ClaimLeafPayout<'info> {
+    #[account(mut, has_one = creator)]
+    pub leaf: Account<'info, Leaf>,
+    #[account(mut)]
+    pub creator: Signer<'info>,
 }

@@ -1,77 +1,96 @@
 require('dotenv').config();
 const express = require('express');
 const { Connection, Keypair, PublicKey, SystemProgram } = require('@solana/web3.js');
-const { Program, AnchorProvider, Wallet, utils } = require('@coral-xyz/anchor');
+const { Program, AnchorProvider, Wallet, BN } = require('@coral-xyz/anchor');
 const bs58 = require('bs58').default;
+const path = require('path');
 
 const app = express();
 app.use(express.json());
 
-// Configuración inicial
+// Configuración
 const PORT = process.env.PORT || 3001;
 const RPC_URL = process.env.RPC_URL || 'https://api.devnet.solana.com';
 const PRIVATE_KEY = process.env.ORACLE_PRIVATE_KEY;
-const PROGRAM_ID_STR = process.env.PROGRAM_ID || 'Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS'; // Hivework pubkey
+const PROGRAM_ID_STR = process.env.PROGRAM_ID;
 
 if (!PRIVATE_KEY) {
   console.error("Falta ORACLE_PRIVATE_KEY en .env");
   process.exit(1);
 }
 
-// Inicializar el Keypair del Oracle a partir de base58
+// Keypair del Oracle
 const oracleKeypair = Keypair.fromSecretKey(bs58.decode(PRIVATE_KEY));
 console.log(`Oracle pubkey: ${oracleKeypair.publicKey.toBase58()}`);
 
-// Conexión y Proveedor
+// Conexión y Provider
 const connection = new Connection(RPC_URL, 'confirmed');
 const wallet = new Wallet(oracleKeypair);
 const provider = new AnchorProvider(connection, wallet, { preflightCommitment: 'confirmed' });
 
-// Para el MVP, usamos un IDL genérico o generado dinámicamente si el IDL final está disponible
-// Si el workspace estuviera construido, cargaríamos ./target/idl/hivework.json
-// En su defecto, aquí asumiremos que tenemos un Program configurado:
+// Cargar IDL y crear instancia del programa
 let program;
 try {
-  // const idl = require('../target/idl/hivework.json'); // Idealmente
-  // program = new Program(idl, PROGRAM_ID_STR, provider);
-  console.log("Servicio Oracle levantado. Esperando inicialización completa del IDL.");
+  const idl = require('../target/idl/hivework.json');
+  const programId = new PublicKey(PROGRAM_ID_STR || idl.address);
+  program = new Program(idl, provider);
+  console.log(`Programa cargado: ${programId.toBase58()}`);
 } catch (e) {
-  console.log("IDL no encontrado aún. El endpoint registrará conversiones simuladas.");
+  console.error("Error cargando IDL:", e.message);
+  console.log("Asegúrate de haber corrido 'anchor build' primero.");
 }
 
-// Endpoint que recibe el webhook del backend (Grupo B) cuando hay una conversión
+// Anti-fraude básico: rate limiting por IP y wallet
+const recentConversions = new Map(); // key: wallet+campaign, value: timestamp
+const RATE_LIMIT_MS = 30_000; // 30 segundos entre conversiones de la misma wallet
+
+function isLegitimate(walletPubkey, campaignPubkey, ip) {
+  const key = `${walletPubkey}-${campaignPubkey}`;
+  const now = Date.now();
+  const last = recentConversions.get(key);
+
+  if (last && (now - last) < RATE_LIMIT_MS) {
+    console.log(`Rate limit: ${key} intentó demasiado rápido`);
+    return false;
+  }
+
+  recentConversions.set(key, now);
+  return true;
+}
+
+// POST /webhook/conversion — Grupo B envía aquí las conversiones
 app.post('/webhook/conversion', async (req, res) => {
   try {
-    const { 
-      campaign_pubkey, 
-      leaf_pubkey, 
-      node_l1_pubkey, 
-      node_l2_pubkey, 
-      node_l3_pubkey, 
-      conversion_id, // uuid o string para derivar 16 bytes
-      value_usdc 
+    const {
+      campaign_pubkey,
+      leaf_pubkey,
+      node_l1_pubkey,
+      node_l2_pubkey,
+      node_l3_pubkey,
+      conversion_id, // string de 16 chars
+      value_usdc,
+      wallet_address
     } = req.body;
 
-    if (!campaign_pubkey || !leaf_pubkey || !value_usdc) {
+    if (!campaign_pubkey || !leaf_pubkey || !value_usdc || !conversion_id) {
       return res.status(400).json({ error: 'Faltan parámetros requeridos.' });
     }
 
-    // 1. Anti-fraude básico (lógica off-chain)
-    // Aquí el Oracle verificaría en su propia DB o validando IPs, si la conversión es legítima.
-    console.log(`Validando conversión ${conversion_id} para hoja ${leaf_pubkey}...`);
-    // Simulación de check anti-fraude
-    const isLegit = true; 
-    if (!isLegit) {
-      return res.status(403).json({ error: 'Conversión rechazada por fraude.' });
+    // Anti-fraude
+    const clientIp = req.ip || req.connection.remoteAddress;
+    if (!isLegitimate(wallet_address || leaf_pubkey, campaign_pubkey, clientIp)) {
+      return res.status(429).json({ error: 'Rate limit: conversión demasiado frecuente.' });
     }
 
-    // 2. Preparar datos para Anchor
-    // Generar o usar los 16 bytes de conversion_id para la PDA
-    const idBuffer = Buffer.alloc(16);
-    idBuffer.write(conversion_id.substring(0, 16)); // string a bytes (simplificado)
-    const value = new anchor.BN(value_usdc); // amount en base atómica
+    if (!program) {
+      return res.status(503).json({ error: 'Programa no inicializado. IDL no cargado.' });
+    }
 
-    // 3. Obtener PDAs y cuentas
+    // Preparar datos
+    const idBuffer = Buffer.alloc(16);
+    idBuffer.write(conversion_id.substring(0, 16));
+    const value = new BN(value_usdc);
+
     const campaignKey = new PublicKey(campaign_pubkey);
     const leafKey = new PublicKey(leaf_pubkey);
 
@@ -82,13 +101,12 @@ app.post('/webhook/conversion', async (req, res) => {
         leafKey.toBuffer(),
         idBuffer
       ],
-      new PublicKey(PROGRAM_ID_STR)
+      program.programId
     );
 
-    console.log(`Firmando y enviando transacción para PDA: ${conversionPda.toBase58()}`);
+    console.log(`Firmando conversión ${conversion_id} → PDA: ${conversionPda.toBase58()}`);
 
-    // Si tuviéramos el programa instanciado:
-    /*
+    // Enviar transacción al contrato
     const tx = await program.methods.registerConversion(Array.from(idBuffer), value)
       .accounts({
         conversion: conversionPda,
@@ -102,24 +120,31 @@ app.post('/webhook/conversion', async (req, res) => {
       })
       .signers([oracleKeypair])
       .rpc();
-    
-    console.log(`TX enviada con éxito: ${tx}`);
-    */
-    
-    // Simulación exitosa para MVP (hasta que Anchor compile)
-    res.status(200).json({ 
-      success: true, 
-      message: 'Conversión verificada y firmada on-chain.',
+
+    console.log(`TX exitosa: ${tx}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Conversión registrada on-chain.',
+      tx,
       pda: conversionPda.toBase58(),
-      // tx: tx
     });
 
   } catch (error) {
-    console.error("Error procesando webhook:", error);
+    console.error("Error procesando webhook:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
+// Health check
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    oracle: oracleKeypair.publicKey.toBase58(),
+    program: program ? program.programId.toBase58() : 'not loaded',
+  });
+});
+
 app.listen(PORT, () => {
-  console.log(`Oracle service corriendo en el puerto ${PORT}`);
+  console.log(`Oracle corriendo en puerto ${PORT}`);
 });
