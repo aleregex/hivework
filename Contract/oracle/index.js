@@ -13,8 +13,13 @@ app.set('trust proxy', true); // confiar en X-Forwarded-For si está detrás de 
 const PORT = process.env.PORT || 3001;
 const RPC_URL = process.env.RPC_URL || 'https://api.devnet.solana.com';
 const PRIVATE_KEY_BS58 = process.env.ORACLE_PRIVATE_KEY;
-const KEYPAIR_PATH = process.env.ORACLE_KEYPAIR_PATH; // alternativa: ruta a JSON tipo solana-keygen
+const KEYPAIR_PATH = process.env.ORACLE_KEYPAIR_PATH;
 const PROGRAM_ID_STR = process.env.PROGRAM_ID;
+// Endpoint de B para verificar conversiones contra metadata off-chain.
+// Spec grupo_a.md: "Endpoint que el oracle llama para verificar potenciales
+// conversiones contra la metadata off-chain antes de firmar".
+// Si está vacío, el oracle confía en el webhook directo (modo demo).
+const BACKEND_VERIFY_URL = process.env.BACKEND_VERIFY_URL || '';
 
 // Cargar keypair: prioridad ORACLE_KEYPAIR_PATH (formato JSON solana) > ORACLE_PRIVATE_KEY (base58)
 function loadKeypair() {
@@ -145,6 +150,26 @@ app.post('/webhook/conversion', async (req, res) => {
     });
     if (!guard.ok) {
       return res.status(429).json({ error: `Anti-fraude: ${guard.reason}` });
+    }
+
+    // Verificación cruzada con backend de B antes de firmar
+    if (BACKEND_VERIFY_URL) {
+      try {
+        const u = new URL(BACKEND_VERIFY_URL);
+        u.searchParams.set('conversion_id', conversion_id);
+        u.searchParams.set('leaf_pubkey', leaf_pubkey);
+        u.searchParams.set('campaign_pubkey', campaign_pubkey);
+        const r = await fetch(u.toString(), { method: 'GET' });
+        if (!r.ok) {
+          return res.status(409).json({ error: `Backend rechaza conversión: ${r.status}` });
+        }
+        const verified = await r.json();
+        if (verified && verified.valid === false) {
+          return res.status(409).json({ error: `Backend rechaza conversión: ${verified.reason || 'invalid'}` });
+        }
+      } catch (e) {
+        return res.status(502).json({ error: `Falló verificación con backend: ${e.message}` });
+      }
     }
 
     if (!program) {

@@ -95,12 +95,12 @@ Esto afecta:
 
 Estas son decisiones que afectan a múltiples grupos. Cuando se confirmen, marcarlas con ✅:
 
-- [ ] Estructura del path genealógico: `array de 3 pubkeys` o `array de 3 PDAs derivados`
-- [ ] Formato del ref_code: `8 chars alfanuméricos` (default sugerido)
-- [ ] Hash de metadata: `SHA-256 del JSON canónico`
-- [ ] Platform fee: `5% del valor de cada conversión`
-- [ ] Pesos default de la fórmula: `α=0.4, β=0.4, γ=0.2`
-- [ ] Levels obligatorios: `[hook, audio, visual]` exactos para MVP
+- [x] Estructura del path genealógico: ✅ **`array de 3 pubkeys` (L1, L2, L3)** — guardado en `Leaf.genealogical_path: [Pubkey; 3]`. Validación en `create_leaf` y `register_conversion`.
+- [x] Formato del ref_code: ✅ **`[u8; 8]` ASCII** — derivable como seed de la PDA del Leaf (`["leaf", campaign, ref_code]`).
+- [x] Hash de metadata: ✅ **SHA-256 del JSON canónico** — el creador firma `bytes_metadata` (tamaño en bytes) y `metadata_hash` (32 bytes). El indexer guarda el JSON real off-chain.
+- [x] Platform fee: ✅ **5%** — hardcoded en `PLATFORM_FEE_PERCENTAGE`. Configurable por contrato en v2.
+- [x] Pesos default de la fórmula: ✅ **α=40, β=40, γ=20** (pct enteros, suman 100). La marca puede pasar otros valores en `create_campaign`.
+- [x] Levels obligatorios: ✅ **L1 + L2 + L3 + leaf** validados por contrato. `create_node` rechaza level ≠ 1/2/3.
 - [ ] Auth frontend → backend: `wallet signature como JWT`
 - [ ] Realtime updates: `WebSocket` o `Server-Sent Events`
 - [ ] Color final del branding: `[a definir]`

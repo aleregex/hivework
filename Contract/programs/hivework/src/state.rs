@@ -17,12 +17,14 @@ pub struct Campaign {
     pub conversions_processed: u32,   // 4 (batch processing counter)
     pub total_conversions: u32,       // 4 (incrementado en register_conversion)
     pub forfeited_pool: u64,          // 8 (lamports de stakes de perdedores)
+    pub total_to_winners: u64,        // 8 (USDC asignado a ganadores en close)
+    pub unused_withdrawn: bool,       // 1 (la marca ya retiró el USDC sobrante)
     pub bump: u8,                     // 1
 }
 
 impl Campaign {
     pub const SPACE: usize =
-        8 + 32 + 4 + 32 + 32 + 32 + 8 + 1 + 1 + 1 + 1 + 8 + 1 + 4 + 4 + 8 + 1;
+        8 + 32 + 4 + 32 + 32 + 32 + 8 + 1 + 1 + 1 + 1 + 8 + 1 + 4 + 4 + 8 + 8 + 1 + 1;
 }
 
 #[account]

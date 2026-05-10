@@ -32,7 +32,7 @@ describe("hivework", () => {
   let escrowUsdc;
   let creatorUsdc;
 
-  const campaignId = 1;
+  const campaignId = Math.floor(Math.random() * 0xffffffff);
   const nowSecs = Math.floor(Date.now() / 1000);
   const deadline = nowSecs + 6;
   const alphaWeight = 40;
@@ -49,12 +49,12 @@ describe("hivework", () => {
   const conversionId = Buffer.alloc(16, 9);
 
   before(async () => {
-    // Fondear oracle desde el provider (evita rate limit de airdrop en devnet)
+    // Fondear oracle desde el provider con lo justo para fees
     const fundOracleTx = new anchor.web3.Transaction().add(
       SystemProgram.transfer({
         fromPubkey: authority.publicKey,
         toPubkey: oracleKp.publicKey,
-        lamports: LAMPORTS_PER_SOL,
+        lamports: 0.1 * LAMPORTS_PER_SOL,
       })
     );
     await provider.sendAndConfirm(fundOracleTx);
@@ -318,7 +318,7 @@ describe("hivework", () => {
       SystemProgram.transfer({
         fromPubkey: authority.publicKey,
         toPubkey: fakeOracle.publicKey,
-        lamports: LAMPORTS_PER_SOL / 2,
+        lamports: 0.05 * LAMPORTS_PER_SOL,
       })
     );
     await provider.sendAndConfirm(fundTx);

@@ -102,6 +102,8 @@ pub mod hivework {
         campaign.conversions_processed = 0;
         campaign.total_conversions = 0;
         campaign.forfeited_pool = 0;
+        campaign.total_to_winners = 0;
+        campaign.unused_withdrawn = false;
         campaign.bump = ctx.bumps.campaign;
 
         emit!(CampaignCreated {
@@ -379,27 +381,35 @@ pub mod hivework {
         let leaf_bonus = (distributable * (LEAF_BONUS_PERCENTAGE as u64)) / 100;
         let shared_pool = distributable - leaf_bonus;
 
+        let l1_share = (shared_pool * w_l1) / total_weight;
+        let l2_share = (shared_pool * w_l2) / total_weight;
+        let l3_share = (shared_pool * w_l3) / total_weight;
+        let leaf_share = (shared_pool * w_leaf) / total_weight + leaf_bonus;
+
         ctx.accounts.node_l1.claimable_usdc = ctx
             .accounts
             .node_l1
             .claimable_usdc
-            .saturating_add((shared_pool * w_l1) / total_weight);
+            .saturating_add(l1_share);
         ctx.accounts.node_l2.claimable_usdc = ctx
             .accounts
             .node_l2
             .claimable_usdc
-            .saturating_add((shared_pool * w_l2) / total_weight);
+            .saturating_add(l2_share);
         ctx.accounts.node_l3.claimable_usdc = ctx
             .accounts
             .node_l3
             .claimable_usdc
-            .saturating_add((shared_pool * w_l3) / total_weight);
-
+            .saturating_add(l3_share);
         ctx.accounts.leaf.claimable_usdc = ctx
             .accounts
             .leaf
             .claimable_usdc
-            .saturating_add(((shared_pool * w_leaf) / total_weight) + leaf_bonus);
+            .saturating_add(leaf_share);
+
+        // Tracking total asignado a ganadores → permite a la marca retirar el remanente
+        let allocated = l1_share + l2_share + l3_share + leaf_share;
+        campaign.total_to_winners = campaign.total_to_winners.saturating_add(allocated);
 
         conversion.is_processed = true;
         campaign.conversions_processed = campaign.conversions_processed.checked_add(1).unwrap();
@@ -571,6 +581,49 @@ pub mod hivework {
                 .try_borrow_mut_lamports()? += stake_to_release;
         }
 
+        Ok(())
+    }
+
+    /// Devuelve a la marca el USDC del escrow que no fue asignado a ningún ganador.
+    /// Solo callable por la marca, después del cierre y de procesar todas las conversiones.
+    pub fn withdraw_unused_usdc(ctx: Context<WithdrawUnusedUsdc>) -> Result<()> {
+        let campaign = &ctx.accounts.campaign;
+        require!(campaign.is_closed, HiveworkError::CampaignNotClosed);
+        require!(
+            campaign.conversions_processed == campaign.total_conversions,
+            HiveworkError::PendingConversions
+        );
+        require!(!campaign.unused_withdrawn, HiveworkError::UnusedAlreadyWithdrawn);
+
+        let unused = campaign
+            .total_usdc
+            .saturating_sub(campaign.total_to_winners);
+        require!(unused > 0, HiveworkError::NoUnusedUsdc);
+
+        let auth_bytes = campaign.authority.to_bytes();
+        let id_bytes = campaign.id.to_le_bytes();
+        let bump = campaign.bump;
+        let seeds: &[&[u8]] = &[
+            CAMPAIGN_SEED,
+            auth_bytes.as_ref(),
+            id_bytes.as_ref(),
+            std::slice::from_ref(&bump),
+        ];
+        let signer_seeds = &[seeds];
+
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.escrow_usdc.to_account_info(),
+            to: ctx.accounts.authority_usdc.to_account_info(),
+            authority: ctx.accounts.campaign.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.key(),
+            cpi_accounts,
+            signer_seeds,
+        );
+        token::transfer(cpi_ctx, unused)?;
+
+        ctx.accounts.campaign.unused_withdrawn = true;
         Ok(())
     }
 
@@ -834,6 +887,32 @@ pub struct ClaimLeafPayout<'info> {
 
     #[account(mut)]
     pub creator: Signer<'info>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawUnusedUsdc<'info> {
+    #[account(
+        mut,
+        has_one = authority,
+        seeds = [CAMPAIGN_SEED, campaign.authority.as_ref(), &campaign.id.to_le_bytes()],
+        bump = campaign.bump,
+    )]
+    pub campaign: Account<'info, Campaign>,
+
+    #[account(mut, address = campaign.escrow_usdc)]
+    pub escrow_usdc: Account<'info, TokenAccount>,
+
+    #[account(
+        mut,
+        token::mint = campaign.usdc_mint,
+        token::authority = authority,
+    )]
+    pub authority_usdc: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub authority: Signer<'info>,
 
     pub token_program: Program<'info, Token>,
 }

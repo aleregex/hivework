@@ -34,4 +34,10 @@ pub enum HiveworkError {
     NoStakeToForfeit,
     #[msg("La redistribución de este leaf ya fue reclamada")]
     RedistributionAlreadyClaimed,
+    #[msg("Aún hay conversiones sin procesar")]
+    PendingConversions,
+    #[msg("La marca ya retiró el USDC no usado")]
+    UnusedAlreadyWithdrawn,
+    #[msg("No hay USDC no usado para retirar")]
+    NoUnusedUsdc,
 }

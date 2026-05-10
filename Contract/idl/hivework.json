@@ -749,6 +749,77 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "withdraw_unused_usdc",
+      "docs": [
+        "Devuelve a la marca el USDC del escrow que no fue asignado a ningún ganador.",
+        "Solo callable por la marca, después del cierre y de procesar todas las conversiones."
+      ],
+      "discriminator": [
+        103,
+        51,
+        192,
+        218,
+        105,
+        143,
+        249,
+        96
+      ],
+      "accounts": [
+        {
+          "name": "campaign",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign.authority",
+                "account": "Campaign"
+              },
+              {
+                "kind": "account",
+                "path": "campaign.id",
+                "account": "Campaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow_usdc",
+          "writable": true
+        },
+        {
+          "name": "authority_usdc",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "campaign"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -952,6 +1023,21 @@
       "code": 6015,
       "name": "RedistributionAlreadyClaimed",
       "msg": "La redistribución de este leaf ya fue reclamada"
+    },
+    {
+      "code": 6016,
+      "name": "PendingConversions",
+      "msg": "Aún hay conversiones sin procesar"
+    },
+    {
+      "code": 6017,
+      "name": "UnusedAlreadyWithdrawn",
+      "msg": "La marca ya retiró el USDC no usado"
+    },
+    {
+      "code": 6018,
+      "name": "NoUnusedUsdc",
+      "msg": "No hay USDC no usado para retirar"
     }
   ],
   "types": [
@@ -1019,6 +1105,14 @@
           {
             "name": "forfeited_pool",
             "type": "u64"
+          },
+          {
+            "name": "total_to_winners",
+            "type": "u64"
+          },
+          {
+            "name": "unused_withdrawn",
+            "type": "bool"
           },
           {
             "name": "bump",
