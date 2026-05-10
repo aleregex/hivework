@@ -6,10 +6,11 @@ pub const CONVERSION_SEED: &[u8] = b"conversion";
 
 // Stakes requeridos para prevenir spam (en lamports)
 // 1 SOL = 1_000_000_000 lamports
-pub const L1_STAKE_AMOUNT: u64 = 1_000_000_000;    // 1.0 SOL
-pub const L2_STAKE_AMOUNT: u64 = 500_000_000;      // 0.5 SOL
-pub const L3_STAKE_AMOUNT: u64 = 250_000_000;      // 0.25 SOL
-pub const LEAF_STAKE_AMOUNT: u64 = 100_000_000;    // 0.1 SOL
+// Valores reducidos 100x para devnet/testing (originales: 1.0 / 0.5 / 0.25 / 0.1 SOL)
+pub const L1_STAKE_AMOUNT: u64 = 10_000_000;       // 0.01 SOL
+pub const L2_STAKE_AMOUNT: u64 = 5_000_000;        // 0.005 SOL
+pub const L3_STAKE_AMOUNT: u64 = 2_500_000;        // 0.0025 SOL
+pub const LEAF_STAKE_AMOUNT: u64 = 1_000_000;      // 0.001 SOL
 
 pub const PLATFORM_FEE_PERCENTAGE: u8 = 5;
 pub const LEAF_BONUS_PERCENTAGE: u8 = 30;
