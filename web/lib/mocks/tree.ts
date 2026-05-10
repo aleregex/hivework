@@ -20,6 +20,12 @@ export type TreeNode = {
   conversions: number;
   payoutUsdc: number;
   refCode?: string; // only for leaves
+  /**
+   * On-chain PDA for finalized nodes/leaves. Null while the row is still in
+   * `draft` state. Required by Tier 4 flows: createLeaf needs the parent
+   * nodes' PDAs, createNode needs the parent's PDA for L2/L3.
+   */
+  onchainPda?: string | null;
 };
 
 export type GraphData = {

@@ -130,7 +130,11 @@ export default async function CampaignDetailPage({ params }: PageProps) {
 
       {/* Tree */}
       <div className="mt-4">
-        <TreeView initialNodes={tree} campaignId={campaign.id} />
+        <TreeView
+          initialNodes={tree}
+          campaignId={campaign.id}
+          campaignOnchainPda={detail.campaign.onchainPda}
+        />
       </div>
     </AppShell>
   );

@@ -91,6 +91,7 @@ export function adaptNode(n: ApiNode): TreeNode {
     // Per-node USDC accrual isn't computed off-chain yet (lives in the
     // wallet portfolio aggregate). Stays 0 in the tree view.
     payoutUsdc: 0,
+    onchainPda: n.onchainPda,
   };
 }
 
@@ -112,6 +113,7 @@ export function adaptLeaf(l: ApiLeaf): TreeNode {
     conversions: 0,
     payoutUsdc: 0,
     refCode: l.refCode,
+    onchainPda: l.onchainPda,
   };
 }
 

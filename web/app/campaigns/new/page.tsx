@@ -14,21 +14,27 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { PublicKey } from "@solana/web3.js";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useHiveworkProgram } from "@/lib/anchor/program";
+import { createCampaignOnchain } from "@/lib/anchor/tx";
+import { postCampaignDraft, postCampaignFinalize } from "@/lib/api/hooks";
 
 const formSchema = z.object({
   brand: z.string().min(2, "Brand name is required"),
   product: z.string().min(4, "Product description is required"),
   storefrontUrl: z.string().url("Must be a valid URL"),
-  poolUsdc: z.coerce.number().min(50, "Minimum pool is 50 USDC"),
+  poolUsdc: z.coerce.number().min(1, "Minimum pool is 1 USDC"),
   conversionValueUsdc: z.coerce
     .number()
-    .min(0.5, "Minimum 0.5 USDC per conversion"),
+    .min(0.1, "Minimum 0.1 USDC per conversion"),
   deadlineDays: z.coerce.number().min(1).max(60),
   conversionCriteria: z.enum([
     "purchase",
@@ -52,6 +58,9 @@ export default function NewCampaignPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const program = useHiveworkProgram();
+  const { publicKey } = useWallet();
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -90,15 +99,70 @@ export default function NewCampaignPage() {
   }
 
   async function onSubmit() {
-    // TODO(group-c, task #6): replace with Anchor createCampaign tx + USDC escrow transfer.
+    if (!program || !publicKey) {
+      toast.error("Connect your wallet first");
+      return;
+    }
+    const usdcMintStr = process.env.NEXT_PUBLIC_USDC_MINT;
+    const oracleStr = process.env.NEXT_PUBLIC_ORACLE_AUTHORITY;
+    if (!usdcMintStr || !oracleStr) {
+      toast.error(
+        "Missing NEXT_PUBLIC_USDC_MINT or NEXT_PUBLIC_ORACLE_AUTHORITY in .env.local"
+      );
+      return;
+    }
+
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setSubmitting(false);
-    toast.success("Campaign created on devnet (mock)", {
-      description:
-        "USDC moved to escrow. Tree is empty — share the link to start.",
-    });
-    router.push("/c/cmp_halo_cola");
+    try {
+      // 1) Persist metadata off-chain so the api row exists before the tx
+      //    confirms. Returns a CUID we use as the draftId.
+      const draft = await postCampaignDraft({
+        brandName: values.brand,
+        // The form has one product field (description); reuse the brand as
+        // the short name. Real deployments would split these.
+        productName: values.brand,
+        productDescription: values.product,
+        redirectUrl: values.storefrontUrl,
+        creatorWallet: publicKey.toBase58(),
+        poolUsdc: values.poolUsdc,
+      });
+
+      // 2) Sign + send create_campaign on-chain. Anchor handles preflight +
+      //    confirmation; rpc() resolves once the tx is `confirmed`.
+      const deadlineUnixSec =
+        Math.floor(Date.now() / 1000) + values.deadlineDays * 86_400;
+      const { campaignPda, signature } = await createCampaignOnchain(program, {
+        authority: publicKey,
+        usdcMint: new PublicKey(usdcMintStr),
+        oracleAuthority: new PublicKey(oracleStr),
+        initialUsdc: values.poolUsdc,
+        deadlineUnixSec,
+      });
+      toast.success("Campaign created on devnet", {
+        description: `tx ${signature.slice(0, 8)}…${signature.slice(-4)}`,
+      });
+
+      // 3) Flip the draft to "active" with the resolved PDA. The indexer
+      //    would also do this on the CampaignCreated event, but calling here
+      //    gives instant UI feedback (idempotent if the indexer races us).
+      await postCampaignFinalize({
+        draftId: draft.id,
+        onchainPda: campaignPda.toBase58(),
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      router.push(`/c/${draft.id}`);
+      return;
+    } catch (err) {
+      console.error("createCampaign failed", err);
+      toast.error("Couldn't create campaign", {
+        description:
+          err instanceof Error ? err.message : "Unknown error — see console.",
+      });
+      return;
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

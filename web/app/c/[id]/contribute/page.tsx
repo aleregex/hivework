@@ -14,8 +14,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useCampaign } from "@/lib/api/hooks";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { PublicKey } from "@solana/web3.js";
+import { postNodeDraft, postNodeFinalize, useCampaign } from "@/lib/api/hooks";
 import { adaptCampaign, adaptTree } from "@/lib/api/adapters";
+import { useHiveworkProgram } from "@/lib/anchor/program";
+import { createNodeOnchain } from "@/lib/anchor/tx";
 
 const STAKE_BY_LEVEL: Record<number, number> = {
   1: 1.0,
@@ -51,6 +56,10 @@ export default function ContributePage({ params }: PageProps) {
   const campaign = detail ? adaptCampaign(detail.campaign) : undefined;
   const tree = detail ? adaptTree(detail) : [];
 
+  const program = useHiveworkProgram();
+  const { publicKey } = useWallet();
+  const queryClient = useQueryClient();
+
   const [submitting, setSubmitting] = useState(false);
 
   const form = useForm<NodeForm>({
@@ -61,13 +70,78 @@ export default function ContributePage({ params }: PageProps) {
   const watchedLevel = form.watch("level");
   const stakeForNode = STAKE_BY_LEVEL[watchedLevel] ?? 1.0;
 
-  async function submit() {
-    // TODO(group-c, task #6): replace with Anchor createNode tx + SOL stake transfer.
+  async function submit(values: NodeForm) {
+    if (!program || !publicKey) {
+      toast.error("Connect your wallet first");
+      return;
+    }
+    const campaignPdaStr = detail?.campaign.onchainPda;
+    if (!campaignPdaStr) {
+      toast.error(
+        "Campaign isn't finalized on-chain yet — wait for the brand's tx to confirm."
+      );
+      return;
+    }
+
+    // Resolve parent on-chain PDA. L1 has no parent (passes SystemProgram
+    // sentinel inside createNodeOnchain). L2/L3 require an already-finalized
+    // parent node from the visible tree.
+    let parentNode: PublicKey | null = null;
+    if (values.level > 1) {
+      const parent = tree.find((n) => n.id === values.parentId);
+      if (!parent?.onchainPda) {
+        toast.error(
+          "Parent node isn't finalized on-chain yet. Pick a confirmed parent."
+        );
+        return;
+      }
+      parentNode = new PublicKey(parent.onchainPda);
+    }
+
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setSubmitting(false);
-    toast.success(`Node staked ${stakeForNode} SOL on devnet (mock)`);
-    router.push(`/c/${id}`);
+    try {
+      // 1) Persist the metadata draft.
+      const draft = await postNodeDraft({
+        campaignId: id,
+        level: values.level === 1 ? "L1" : values.level === 2 ? "L2" : "L3",
+        parentNodeId: values.level === 1 ? null : values.parentId,
+        creatorWallet: publicKey.toBase58(),
+        title: values.title,
+        description: values.description,
+        stakeSol: stakeForNode,
+      });
+
+      // 2) Sign + send create_node on-chain. The metadata payload here MUST
+      //    match what we passed to /nodes/draft so the on-chain hash + the
+      //    api row describe the same thing.
+      const { nodePda, signature } = await createNodeOnchain(program, {
+        campaign: new PublicKey(campaignPdaStr),
+        creator: publicKey,
+        level: values.level as 1 | 2 | 3,
+        parentNode,
+        metadata: { title: values.title, description: values.description },
+      });
+      toast.success(`Node staked ${stakeForNode} SOL on devnet`, {
+        description: `tx ${signature.slice(0, 8)}…${signature.slice(-4)}`,
+      });
+
+      // 3) Finalize the off-chain row.
+      await postNodeFinalize({
+        draftId: draft.id,
+        onchainPda: nodePda.toBase58(),
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["campaigns", id] });
+      router.push(`/c/${id}`);
+    } catch (err) {
+      console.error("createNode failed", err);
+      toast.error("Couldn't create node", {
+        description:
+          err instanceof Error ? err.message : "Unknown error — see console.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

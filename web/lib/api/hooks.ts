@@ -8,7 +8,9 @@ import { apiFetch } from "./client";
 import type {
   ApiCampaignDetail,
   ApiCampaignSummary,
+  ApiLeaf,
   ApiLeafByRef,
+  ApiNode,
   ApiPaginated,
   ApiPortfolio,
 } from "./types";
@@ -78,4 +80,86 @@ export async function postDemoConvert(input: {
     status: "pending";
     createdAt: string;
   }>("/demo/convert", { method: "POST", json: input });
+}
+
+// ---------- 2-step on-chain flows: draft → tx → finalize ----------
+//
+// Each pair below mirrors a flow from api/FRONTEND.md § "Two universal
+// patterns". Drafts persist metadata; finalize closes the loop after the
+// wallet's tx confirms on-chain. The actual tx is built in lib/anchor/tx.ts.
+
+export async function postCampaignDraft(input: {
+  brandName: string;
+  productName: string;
+  productDescription: string;
+  redirectUrl: string;
+  creatorWallet: string;
+  poolUsdc: number;
+  brandLogoUrl?: string | null;
+  productImageUrl?: string | null;
+}) {
+  return apiFetch<ApiCampaignSummary>("/campaigns/draft", {
+    method: "POST",
+    json: input,
+  });
+}
+
+export async function postCampaignFinalize(input: {
+  draftId: string;
+  onchainPda: string;
+}) {
+  return apiFetch<ApiCampaignSummary>("/campaigns/finalize", {
+    method: "POST",
+    json: input,
+  });
+}
+
+export async function postNodeDraft(input: {
+  campaignId: string;
+  level: "L1" | "L2" | "L3";
+  parentNodeId?: string | null;
+  creatorWallet: string;
+  title: string;
+  description: string;
+  examples?: unknown | null;
+  tags?: string[];
+  mediaUrls?: string[];
+  stakeSol: number;
+}) {
+  return apiFetch<ApiNode>("/nodes/draft", { method: "POST", json: input });
+}
+
+export async function postNodeFinalize(input: {
+  draftId: string;
+  onchainPda: string;
+}) {
+  return apiFetch<ApiNode>("/nodes/finalize", {
+    method: "POST",
+    json: input,
+  });
+}
+
+export async function postLeafDraft(input: {
+  campaignId: string;
+  path: [string, string, string];
+  creatorWallet: string;
+  contentUrl?: string | null;
+  platform: "tiktok" | "instagram" | "x" | "youtube" | "other";
+  stakeSol: number;
+}) {
+  return apiFetch<{
+    leaf: ApiLeaf;
+    reservation: { refCode: string; expiresAt: string };
+  }>("/leaves/draft", { method: "POST", json: input });
+}
+
+export async function postLeafFinalize(input: {
+  draftId: string;
+  refCode: string;
+  onchainPda: string;
+}) {
+  return apiFetch<ApiLeaf>("/leaves/finalize", {
+    method: "POST",
+    json: input,
+  });
 }
