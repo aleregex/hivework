@@ -134,18 +134,20 @@ export async function createNodeOnchain(
 
   const [nodePda] = deriveNodePda(args.campaign, args.creator, metadataHash);
 
-  // L1 needs no parent — pass System program as a sentinel.
-  const parentAccount = args.parentNode ?? SystemProgram.programId;
-
+  // The contract's `parent_node` is `Option<Account<Node>>` (IDL flags it
+  // optional: true). For L1, we pass null so Anchor encodes "absent"; for
+  // L2/L3, we pass the real parent PDA. We cast to satisfy Anchor's strict
+  // .accounts type — at runtime null is the correct value for optional accs.
   const signature = await program.methods
     .createNode(args.level, Array.from(metadataHash), bytesMetadata)
-    .accountsStrict({
+    .accounts({
       node: nodePda,
       campaign: args.campaign,
       creator: args.creator,
-      parentNode: parentAccount,
+      parentNode: args.parentNode,
       systemProgram: SystemProgram.programId,
-    })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
     .rpc();
 
   return { nodePda, metadataHash, bytesMetadata, signature };
