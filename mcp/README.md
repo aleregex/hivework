@@ -128,7 +128,7 @@ Create a tree node (L1=hook, L2=audio, L3=visual).
 }
 ```
 
-Stake `auto: true` (default) uses canonical L1=1.0, L2=0.5, L3=0.25 SOL.
+Stake `auto: true` (default) uses canonical L1=0.01, L2=0.005, L3=0.0025 SOL (devnet-cheap stakes; on-chain enforced).
 
 **Output**
 ```json
@@ -182,7 +182,7 @@ Create a sibling node (same parent + level) inheriting the original's metadata, 
 
 ### `create_leaf`
 
-Register a leaf (a published piece of content with a unique referral link). `path` is the 3 node ids `[L1, L2, L3]` this leaf combines. Stake defaults to 0.1 SOL.
+Register a leaf (a published piece of content with a unique referral link). `path` is the 3 node ids `[L1, L2, L3]` this leaf combines. Stake defaults to 0.001 SOL (devnet-cheap; on-chain enforced).
 
 **Input**
 ```json

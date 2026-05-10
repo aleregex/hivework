@@ -22,10 +22,14 @@ import { adaptCampaign, adaptTree } from "@/lib/api/adapters";
 import { useHiveworkProgram } from "@/lib/anchor/program";
 import { createNodeOnchain } from "@/lib/anchor/tx";
 
+// Stakes match Contract/programs/hivework/src/constants.rs after the
+// devnet-cheap redeploy (100x reduction from the paper). On-chain transfers
+// use the level — these values are display only; the contract is the source
+// of truth.
 const STAKE_BY_LEVEL: Record<number, number> = {
-  1: 1.0,
-  2: 0.5,
-  3: 0.25,
+  1: 0.01,
+  2: 0.005,
+  3: 0.0025,
 };
 
 const nodeSchema = z.object({
@@ -68,7 +72,7 @@ export default function ContributePage({ params }: PageProps) {
   });
 
   const watchedLevel = form.watch("level");
-  const stakeForNode = STAKE_BY_LEVEL[watchedLevel] ?? 1.0;
+  const stakeForNode = STAKE_BY_LEVEL[watchedLevel] ?? 0.01;
 
   async function submit(values: NodeForm) {
     if (!program || !publicKey) {
@@ -203,9 +207,9 @@ export default function ContributePage({ params }: PageProps) {
                     className="h-9 rounded-md border border-line bg-ink-2 px-3 text-sm"
                     {...form.register("level")}
                   >
-                    <option value={1}>1 · Hook (1.0 SOL)</option>
-                    <option value={2}>2 · Audio (0.5 SOL)</option>
-                    <option value={3}>3 · Visual (0.25 SOL)</option>
+                    <option value={1}>1 · Hook (0.01 SOL)</option>
+                    <option value={2}>2 · Audio (0.005 SOL)</option>
+                    <option value={3}>3 · Visual (0.0025 SOL)</option>
                   </select>
                 </div>
                 <div className="grid gap-2">

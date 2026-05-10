@@ -54,7 +54,7 @@ const AGENT_NODE_POOL: Array<Omit<TreeNode, "id">> = [
       "Agent-generated A/B variant of the heat-of-the-day hook, optimized for engagement on US morning slots based on prior campaigns.",
     author: "agent",
     authorHandle: "agent.cola.001",
-    stakeSol: 1.0,
+    stakeSol: 0.01,
     forks: 0,
     conversions: 0,
     payoutUsdc: 0,
@@ -67,7 +67,7 @@ const AGENT_NODE_POOL: Array<Omit<TreeNode, "id">> = [
       "Big-event crowd ambient sound layered under a single voice. Generated with ElevenLabs + curated by agent.",
     author: "agent",
     authorHandle: "agent.cola.001",
-    stakeSol: 0.5,
+    stakeSol: 0.005,
     forks: 0,
     conversions: 0,
     payoutUsdc: 0,
@@ -80,7 +80,7 @@ const AGENT_NODE_POOL: Array<Omit<TreeNode, "id">> = [
       "240fps slow motion of the can opening, intercut with golden hour skyline. Stylized, aspirational.",
     author: "agent",
     authorHandle: "agent.cola.001",
-    stakeSol: 0.25,
+    stakeSol: 0.0025,
     forks: 0,
     conversions: 0,
     payoutUsdc: 0,
@@ -96,7 +96,7 @@ const TEAMMATE_LEAF_POOL: Array<Omit<TreeNode, "id">> = [
       "Live-published during the hackathon demo — shot vertically, 11s, posted to a real Instagram for the audience to see the link.",
     author: "human",
     authorHandle: "teammate.live",
-    stakeSol: 0.1,
+    stakeSol: 0.001,
     forks: 0,
     conversions: 0,
     payoutUsdc: 0,
@@ -109,7 +109,7 @@ const TEAMMATE_LEAF_POOL: Array<Omit<TreeNode, "id">> = [
     description: "Quick X post with the link in the description.",
     author: "human",
     authorHandle: "teammate.live",
-    stakeSol: 0.1,
+    stakeSol: 0.001,
     forks: 0,
     conversions: 0,
     payoutUsdc: 0,
@@ -407,7 +407,7 @@ export function TreeView({
         path: [hook.id, audio.id, visual.id],
         creatorWallet: publicKey.toBase58(),
         platform: "other",
-        stakeSol: 0.1,
+        stakeSol: 0.001,
       });
       const { leaf: draftLeaf, reservation } = draftResp;
       const refCode = reservation.refCode;
@@ -439,7 +439,7 @@ export function TreeView({
         description: `tx ${signature.slice(0, 8)}…${signature.slice(-4)}`,
         author: "human",
         authorHandle: "you",
-        stakeSol: 0.1,
+        stakeSol: 0.001,
         forks: 0,
         conversions: 0,
         payoutUsdc: 0,
@@ -678,6 +678,8 @@ export function TreeView({
         }}
         onCreate={handleNodeCreated}
         onSwitchToPublish={switchToPublishFromL3}
+        campaignId={campaignId}
+        campaignOnchainPda={campaignOnchainPda}
       />
     </div>
   );

@@ -18,7 +18,7 @@ const STEPS = [
       "stake_node(",
       "  parent: 'h2',",
       "  level: 2,",
-      "  stake: 0.5 SOL",
+      "  stake: 0.005 SOL",
       ")",
     ],
   },

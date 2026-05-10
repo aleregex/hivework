@@ -125,12 +125,12 @@ export function PublishFlowPanel({
       {pathComplete ? (
         <div className="mt-auto flex flex-col gap-3 border-t border-line pt-4">
           <div className="rounded-md border border-honey/30 bg-honey/5 p-3 font-mono text-[11px] leading-relaxed text-honey">
-            Phantom will sign 1 tx: stake 0.1 SOL + publish post. You earn the
+            Phantom will sign 1 tx: stake 0.001 SOL + publish post. You earn the
             base path payout + 30% post bonus on every conversion.
           </div>
           <Button variant="honey" onClick={onPublish}>
             <Sparkles className="h-4 w-4" />
-            Stake 0.1 SOL & publish
+            Stake 0.001 SOL & publish
           </Button>
           <button
             onClick={onReset}

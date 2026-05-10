@@ -6,6 +6,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { PublicKey } from "@solana/web3.js";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +22,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { NodeLevel, TreeNode } from "@/lib/mocks/tree";
+import { useHiveworkProgram } from "@/lib/anchor/program";
+import { createNodeOnchain } from "@/lib/anchor/tx";
+import { postNodeDraft, postNodeFinalize } from "@/lib/api/hooks";
 
 /**
  * Inline node-creation modal. Replaces the full-page /contribute flow for
@@ -31,10 +37,12 @@ import type { NodeLevel, TreeNode } from "@/lib/mocks/tree";
  * ref-link + QR and that UX is visual, not form-based.
  */
 
+// Stakes match Contract/programs/hivework/src/constants.rs after the
+// devnet-cheap redeploy. Display only — contract enforces the on-chain values.
 const STAKE_BY_LEVEL: Record<1 | 2 | 3, number> = {
-  1: 1.0,
-  2: 0.5,
-  3: 0.25,
+  1: 0.01,
+  2: 0.005,
+  3: 0.0025,
 };
 
 const LEVEL_LABEL: Record<1 | 2 | 3, string> = {
@@ -61,6 +69,10 @@ type Props = {
   onSwitchToPublish?: (parentL3: TreeNode) => void;
   /** Wallet handle for the author of the new node. Defaults to "you". */
   authorHandle?: string;
+  /** Off-chain campaign id (CUID). Required to call the api drafts. */
+  campaignId: string;
+  /** On-chain campaign PDA. Null while the campaign is still in `draft`. */
+  campaignOnchainPda: string | null;
 };
 
 export function AddNodeDialog({
@@ -70,7 +82,12 @@ export function AddNodeDialog({
   onCreate,
   onSwitchToPublish,
   authorHandle = "you",
+  campaignId,
+  campaignOnchainPda,
 }: Props) {
+  const program = useHiveworkProgram();
+  const { publicKey } = useWallet();
+  const queryClient = useQueryClient();
   // Determine the level of the new child. Falls back to L1 when parent is null
   // (top-level hook). Capped at 4 — L4 is delegated to the publish flow.
   const childLevel: NodeLevel = parent
@@ -129,31 +146,92 @@ export function AddNodeDialog({
   const levelLabel = LEVEL_LABEL[childLevel as 1 | 2 | 3];
 
   const submit = async (values: FormValues) => {
-    // TODO(group-c): replace with Anchor createNode tx + SOL stake transfer.
+    if (!program || !publicKey) {
+      toast.error("Connect your wallet first");
+      return;
+    }
+    if (!campaignOnchainPda) {
+      toast.error(
+        "Campaign isn't finalized on-chain yet — wait for the brand's tx."
+      );
+      return;
+    }
+    // L2/L3 require an already-finalized parent.
+    let parentNode: PublicKey | null = null;
+    if (childLevel > 1) {
+      if (!parent?.onchainPda) {
+        toast.error(
+          "Parent node isn't finalized on-chain yet. Pick a confirmed parent."
+        );
+        return;
+      }
+      parentNode = new PublicKey(parent.onchainPda);
+    }
+
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 700));
+    try {
+      const title = values.title.trim();
+      const description = values.description.trim();
 
-    const newNode: TreeNode = {
-      id: makeNodeId(),
-      level: childLevel,
-      parentId: parent ? parent.id : "root",
-      title: values.title.trim(),
-      description: values.description.trim(),
-      author: "human",
-      authorHandle,
-      stakeSol: stake,
-      forks: 0,
-      conversions: 0,
-      payoutUsdc: 0,
-    };
+      // 1) Persist the draft. Returns the CUID we'll use as the new node's id.
+      const draft = await postNodeDraft({
+        campaignId,
+        level:
+          childLevel === 1 ? "L1" : childLevel === 2 ? "L2" : "L3",
+        parentNodeId: childLevel === 1 ? null : (parent?.id ?? null),
+        creatorWallet: publicKey.toBase58(),
+        title,
+        description,
+        stakeSol: stake,
+      });
 
-    onCreate(newNode);
-    setSubmitting(false);
-    toast.success(`Node staked ${stake} SOL on devnet`, {
-      description: `L${childLevel} · ${newNode.title}`,
-      duration: 2400,
-    });
-    onOpenChange(false);
+      // 2) Sign + send create_node. Metadata MUST match the api row so the
+      //    on-chain hash + the off-chain blob describe the same thing.
+      const { nodePda, signature } = await createNodeOnchain(program, {
+        campaign: new PublicKey(campaignOnchainPda),
+        creator: publicKey,
+        level: childLevel as 1 | 2 | 3,
+        parentNode,
+        metadata: { title, description },
+      });
+
+      // 3) Finalize the api row with the resolved PDA.
+      await postNodeFinalize({
+        draftId: draft.id,
+        onchainPda: nodePda.toBase58(),
+      });
+
+      // 4) Splice into local tree state via the existing onCreate callback.
+      const newNode: TreeNode = {
+        id: draft.id,
+        level: childLevel,
+        parentId: parent ? parent.id : "root",
+        title,
+        description,
+        author: "human",
+        authorHandle,
+        stakeSol: stake,
+        forks: 0,
+        conversions: 0,
+        payoutUsdc: 0,
+        onchainPda: nodePda.toBase58(),
+      };
+      onCreate(newNode);
+      queryClient.invalidateQueries({ queryKey: ["campaigns", campaignId] });
+      toast.success(`Node staked ${stake} SOL on devnet`, {
+        description: `tx ${signature.slice(0, 8)}…${signature.slice(-4)}`,
+        duration: 2400,
+      });
+      onOpenChange(false);
+    } catch (err) {
+      console.error("createNode failed", err);
+      toast.error("Couldn't create node", {
+        description:
+          err instanceof Error ? err.message : "Unknown error — see console.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -255,10 +333,4 @@ export function AddNodeDialog({
 
 function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
-}
-
-/** Side-effecting helpers live outside the component so React's purity rules
- *  don't lint them as render-time impurity. */
-function makeNodeId(): string {
-  return `node_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 }

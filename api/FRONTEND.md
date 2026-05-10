@@ -302,7 +302,7 @@ Body:
   creatorWallet: string;
   contentUrl?: string | null;
   platform: "tiktok" | "instagram" | "x" | "youtube" | "other";
-  stakeSol: number;                  // canonical 0.1
+  stakeSol: number;                  // canonical 0.001 (devnet-cheap stakes)
 }
 ```
 
