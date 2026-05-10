@@ -18,7 +18,7 @@ const REF_CODE_TO_LEAF: Record<string, string> = {
 };
 
 const PRICING_BY_CAMPAIGN: Record<string, number> = {
-  cmp_chasqui_coffee: 19,
+  cmp_halo_cola: 24,
   cmp_andean_token: 25,
   cmp_hablalo_app: 49,
 };
@@ -30,8 +30,8 @@ export function getLeafByRefCode(refCode: string): LeafBuyContext | null {
   const leaf = getNodeById(leafId);
   if (!leaf) return null;
 
-  // For the demo all mock leaves belong to chasqui-coffee. In real impl this
-  // mapping comes from the leaf's campaign_id field on-chain.
+  // For the demo all mock leaves belong to the headline campaign. In real impl
+  // this mapping comes from the leaf's campaign_id field on-chain.
   const campaign = MOCK_CAMPAIGNS[0];
   const path = getPath(leafId);
   const pricingUsdc = PRICING_BY_CAMPAIGN[campaign.id] ?? 0;

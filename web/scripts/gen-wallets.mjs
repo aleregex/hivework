@@ -37,7 +37,9 @@ const out = [];
 for (const role of ROLES) {
   const path = join(OUT_DIR, `${role}.json`);
   if (existsSync(path)) {
-    console.log(`${role.padEnd(15)} | (already exists, skipped — delete the file to regenerate)`);
+    console.log(
+      `${role.padEnd(15)} | (already exists, skipped — delete the file to regenerate)`
+    );
     continue;
   }
   const kp = Keypair.generate();
@@ -49,4 +51,6 @@ for (const role of ROLES) {
 
 console.log("\nKeypair files written to .local-keys/  (gitignored)");
 console.log("\nPaste the pubkeys into COORDINATION.md → Wallets del Grupo C");
-console.log("and hand them to Group A for pre-funding (5 SOL each + 100 USDC mock for brand_demo).\n");
+console.log(
+  "and hand them to Group A for pre-funding (5 SOL each + 100 USDC mock for brand_demo).\n"
+);

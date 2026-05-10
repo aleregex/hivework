@@ -21,9 +21,9 @@ export type ClaimedPayout = {
 
 export const MOCK_PENDING_PAYOUTS: PendingPayout[] = [
   {
-    campaignId: "cmp_chasqui_coffee",
-    campaignName: "Chasqui Coffee",
-    brandHandle: "chasqui",
+    campaignId: "cmp_halo_cola",
+    campaignName: "Halo Cola",
+    brandHandle: "halocola",
     nodes: 3,
     pendingUsdc: 38.4,
     closesInHours: 142,

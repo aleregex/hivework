@@ -89,7 +89,7 @@ export default function NewCampaignPage() {
       description:
         "USDC moved to escrow. Tree is empty — share the link to start.",
     });
-    router.push("/c/cmp_chasqui_coffee");
+    router.push("/c/cmp_halo_cola");
   }
 
   return (
@@ -178,7 +178,7 @@ export default function NewCampaignPage() {
                     <Label htmlFor="storefrontUrl">Storefront URL</Label>
                     <Input
                       id="storefrontUrl"
-                      placeholder="https://shop.chasqui.coffee"
+                      placeholder="https://shop.halocola.com"
                       {...register("storefrontUrl")}
                     />
                     {errors.storefrontUrl && (

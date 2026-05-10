@@ -88,23 +88,24 @@ export function HowItWorks() {
           className="mx-auto mt-16 max-w-2xl rounded-2xl border border-wax bg-hive/60 p-6 font-mono text-xs leading-6 text-muted"
         >
           <span className="text-honey">campaign</span>{" "}
-          <span className="text-foreground">·</span> chasqui-coffee
+          <span className="text-foreground">·</span> halo-cola
           <br />
-          ├─ <span className="text-pollen">hook</span> · &ldquo;primer sorbo en
-          aymara&rdquo; <span className="text-sting">→ 14 conv</span>
-          <br />│ ├─ <span className="text-pollen">audio</span> · cumbia chicha
-          lo-fi <span className="text-sting">→ 11 conv</span>
-          <br />│ │ ├─ <span className="text-pollen">visual</span> · taza
-          humeante, paisaje yungas <span className="text-sting">→ 9 conv</span>
+          ├─ <span className="text-pollen">hook</span> · &ldquo;first sip on a
+          hot day&rdquo; <span className="text-sting">→ 19 conv</span>
+          <br />│ ├─ <span className="text-pollen">audio</span> · lo-fi beach
+          instrumental <span className="text-sting">→ 14 conv</span>
+          <br />│ │ ├─ <span className="text-pollen">visual</span> ·
+          condensation on glass bottle{" "}
+          <span className="text-sting">→ 12 conv</span>
           <br />│ │ │ └─ <span className="text-honey">leaf</span> ·
-          @amaru.tiktok/3214 <span className="text-sting">→ 9 conv</span>
-          <br />│ │ └─ <span className="text-pollen">visual</span> ·
-          before/after packaging <span className="text-sting">→ 2 conv</span>
-          <br />│ └─ <span className="text-pollen">audio</span> · voiceover
-          quechua <span className="text-muted">→ 0</span>
+          @sofia.creates/tiktok <span className="text-sting">→ 12 conv</span>
+          <br />│ │ └─ <span className="text-pollen">visual</span> · bottle vs
+          can comparison <span className="text-sting">→ 2 conv</span>
+          <br />│ └─ <span className="text-pollen">audio</span> · ASMR can crack
+          + pour <span className="text-muted">→ 0</span>
           <br />
-          └─ <span className="text-pollen">hook</span> · &ldquo;$8 dólares menos
-          en mi café diario&rdquo; <span className="text-sting">→ 27 conv</span>
+          └─ <span className="text-pollen">hook</span> · &ldquo;move over, big
+          soda&rdquo; <span className="text-sting">→ 39 conv</span>
         </motion.div>
       </div>
     </section>

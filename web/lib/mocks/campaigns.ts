@@ -19,13 +19,13 @@ export type CampaignSummary = {
 
 export const MOCK_CAMPAIGNS: CampaignSummary[] = [
   {
-    id: "cmp_chasqui_coffee",
-    brand: "Chasqui Coffee",
-    brandHandle: "chasqui",
-    product: "Single-origin Yungas espresso · 250g",
-    poolUsdc: 500,
-    spentUsdc: 187,
-    conversions: 41,
+    id: "cmp_halo_cola",
+    brand: "Halo Cola",
+    brandHandle: "halocola",
+    product: "Original Recipe · 12-pack of 355ml cans",
+    poolUsdc: 800,
+    spentUsdc: 312,
+    conversions: 58,
     nodes: 23,
     leaves: 12,
     hoursLeft: 142,
