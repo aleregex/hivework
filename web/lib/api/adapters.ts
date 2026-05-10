@@ -10,6 +10,11 @@ import type { CampaignSummary } from "@/lib/mocks/campaigns";
 import type { TreeNode } from "@/lib/mocks/tree";
 import type { LeafBuyContext } from "@/lib/mocks/leaves";
 import type { MyLeafEnriched } from "@/lib/mocks/my-leaves";
+import type {
+  MyCampaignEarnings,
+  MyContribution,
+  StakeStatus,
+} from "@/lib/mocks/my-earnings";
 import type { ClaimedPayout, PendingPayout } from "@/lib/mocks/payouts";
 import type {
   ApiCampaignDetail,
@@ -235,4 +240,128 @@ export function adaptMyLeavesForCampaign(
     });
   }
   return enriched;
+}
+
+/**
+ * Per-campaign earnings panel ("Your earnings" strip on /c/[id]). Joins:
+ *   - portfolio.pendingByCampaign[campaignId].breakdown — per-contribution USDC
+ *   - portfolio.nodes / portfolio.leaves — what the wallet owns in this campaign
+ *   - campaignDetail.nodes — to resolve titles + walk the subtree for stake status
+ *
+ * Stake status mirrors the on-chain release rule: locked while the campaign
+ * is live; releasable after close iff the node (or any descendant) had ≥1
+ * conversion; forfeit otherwise.
+ */
+export function adaptMyEarningsForCampaign(
+  portfolio: ApiPortfolio,
+  campaignDetail: ApiCampaignDetail,
+  campaignId: string,
+  opts: { campaignClosed?: boolean } = {}
+): MyCampaignEarnings | null {
+  if (campaignDetail.campaign.id !== campaignId) return null;
+
+  const ownedNodes = portfolio.nodes.filter(
+    (n) => n.campaignId === campaignId && n.status === "finalized"
+  );
+  const ownedLeaves = portfolio.leaves.filter(
+    (l) => l.campaignId === campaignId && l.status === "finalized"
+  );
+  if (ownedNodes.length === 0 && ownedLeaves.length === 0) return null;
+
+  // Precompute subtree conversion totals for every node in the campaign so
+  // each contribution row can be derived in O(1). Walk children iteratively
+  // — depths > 4 don't happen in this protocol, but the loop is bounded by
+  // the campaign size anyway.
+  const childrenByParent = new Map<string, ApiNode[]>();
+  for (const n of campaignDetail.nodes) {
+    const key = n.parentNodeId ?? "__root__";
+    const arr = childrenByParent.get(key) ?? [];
+    arr.push(n);
+    childrenByParent.set(key, arr);
+  }
+  const subtreeConvByNodeId = new Map<string, number>();
+  for (const root of campaignDetail.nodes) {
+    if (subtreeConvByNodeId.has(root.id)) continue;
+    // Collect all descendants (BFS) and sum.
+    let total = 0;
+    const stack: ApiNode[] = [root];
+    while (stack.length) {
+      const cur = stack.pop()!;
+      total += cur.conversionsCount;
+      const kids = childrenByParent.get(cur.id);
+      if (kids) stack.push(...kids);
+    }
+    subtreeConvByNodeId.set(root.id, total);
+  }
+
+  // Pull pendingUsdc per contribution from the api breakdown.
+  const campaignRow = portfolio.pendingByCampaign.find(
+    (row) => row.campaignId === campaignId
+  );
+  const pendingByContribId = new Map<string, number>();
+  for (const b of campaignRow?.breakdown ?? []) {
+    pendingByContribId.set(b.contributionId, Number(b.pendingUsdc));
+  }
+
+  const campaignClosed =
+    opts.campaignClosed ?? campaignDetail.campaign.status === "closed";
+
+  const stakeStatusFor = (subtreeConv: number): StakeStatus => {
+    if (!campaignClosed) return "locked";
+    return subtreeConv > 0 ? "releasable" : "forfeit";
+  };
+
+  const contributions: MyContribution[] = [];
+  for (const n of ownedNodes) {
+    const subtreeConv = subtreeConvByNodeId.get(n.id) ?? n.conversionsCount;
+    contributions.push({
+      nodeId: n.id,
+      level: n.level === "L1" ? 1 : n.level === "L2" ? 2 : 3,
+      title: n.title,
+      stakeSol: Number(n.stakeSol),
+      payoutUsdc: pendingByContribId.get(n.id) ?? 0,
+      conversions: subtreeConv,
+      stakeStatus: stakeStatusFor(subtreeConv),
+    });
+  }
+  for (const l of ownedLeaves) {
+    // Leaves don't have descendants; their "subtree" is themselves. The api
+    // doesn't surface per-leaf conversion counts yet, so subtreeConv is best
+    // approximated by the breakdown presence (≥1 conversion ⇒ entry exists).
+    const pending = pendingByContribId.get(l.id) ?? 0;
+    const inferredConv = pending > 0 ? 1 : 0;
+    contributions.push({
+      nodeId: l.id,
+      level: 4,
+      title: l.contentUrl ?? `Leaf ${l.refCode}`,
+      stakeSol: Number(l.stakeSol),
+      payoutUsdc: pending,
+      conversions: inferredConv,
+      stakeStatus: stakeStatusFor(inferredConv),
+    });
+  }
+
+  const pendingUsdc = contributions.reduce((s, c) => s + c.payoutUsdc, 0);
+  const claimableUsdc = campaignClosed ? pendingUsdc : 0;
+  const stakeSol = contributions.reduce((s, c) => s + c.stakeSol, 0);
+  const releasableStakeSol = contributions
+    .filter((c) => c.stakeStatus === "releasable")
+    .reduce((s, c) => s + c.stakeSol, 0);
+  const forfeitStakeSol = contributions
+    .filter((c) => c.stakeStatus === "forfeit")
+    .reduce((s, c) => s + c.stakeSol, 0);
+
+  return {
+    campaignId,
+    brand: campaignDetail.campaign.brand.name,
+    campaignStatus: campaignClosed ? "closed" : "active",
+    // Deadline isn't yet stored server-side — same stub as adaptCampaign.
+    closesInHours: campaignClosed ? -1 : 168,
+    pendingUsdc,
+    claimableUsdc,
+    stakeSol,
+    releasableStakeSol,
+    forfeitStakeSol,
+    contributions,
+  };
 }

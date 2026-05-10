@@ -251,7 +251,14 @@ Get all activity for a wallet: nodes created, leaves published, active stakes, p
       "brandName": "string",
       "contributingNodes": 0,
       "pendingUsdc": "string",
-      "status": "active | claimable"
+      "status": "active | claimable",
+      "breakdown": [
+        {
+          "contributionId": "string",
+          "kind": "node | leaf",
+          "pendingUsdc": "string"
+        }
+      ]
     }
   ],
   "claimHistory": [

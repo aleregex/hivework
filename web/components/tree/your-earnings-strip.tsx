@@ -14,10 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  getMyEarningsForCampaign,
-  type MyContribution,
-  type MyCampaignEarnings,
+import { useCampaign, usePortfolio } from "@/lib/api/hooks";
+import { adaptMyEarningsForCampaign } from "@/lib/api/adapters";
+import type {
+  MyContribution,
+  MyCampaignEarnings,
 } from "@/lib/mocks/my-earnings";
 
 type Props = {
@@ -42,12 +43,15 @@ export function YourEarningsStrip({ campaignId }: Props) {
   const { publicKey } = useWallet();
   const [open, setOpen] = useState(false);
 
-  // Server-side mock: assume the campaign is still active. Once TreeView's
-  // close-and-distribute is the source of truth we'll lift this state up.
-  const earnings = useMemo(
-    () => getMyEarningsForCampaign(campaignId, { campaignClosed: false }),
-    [campaignId]
-  );
+  const address = publicKey?.toBase58();
+  const { data: portfolio } = usePortfolio(address);
+  const { data: campaignDetail } = useCampaign(campaignId);
+  // Once TreeView's close-and-distribute is the source of truth we'll lift
+  // this up; for now the api's campaign.status drives it via the adapter.
+  const earnings = useMemo(() => {
+    if (!portfolio || !campaignDetail) return null;
+    return adaptMyEarningsForCampaign(portfolio, campaignDetail, campaignId);
+  }, [portfolio, campaignDetail, campaignId]);
 
   // Wallet not connected → still surface that there's a per-campaign claim
   // flow, but hide the numbers (we wouldn't know whose they are).
@@ -155,11 +159,7 @@ export function YourEarningsStrip({ campaignId }: Props) {
         </div>
       </section>
 
-      <WithdrawDialog
-        open={open}
-        onOpenChange={setOpen}
-        earnings={earnings}
-      />
+      <WithdrawDialog open={open} onOpenChange={setOpen} earnings={earnings} />
     </>
   );
 }
@@ -216,9 +216,9 @@ function WithdrawDialog({
         <DialogHeader>
           <DialogTitle>Withdraw from {earnings.brand}</DialogTitle>
           <DialogDescription>
-            Your accrued payouts and stake across {earnings.contributions.length}{" "}
-            owned node{earnings.contributions.length === 1 ? "" : "s"} in this
-            campaign.
+            Your accrued payouts and stake across{" "}
+            {earnings.contributions.length} owned node
+            {earnings.contributions.length === 1 ? "" : "s"} in this campaign.
           </DialogDescription>
         </DialogHeader>
 
@@ -346,8 +346,7 @@ function WithdrawDialog({
 function ContributionRow({ c }: { c: MyContribution }) {
   const statusStyles: Record<MyContribution["stakeStatus"], string> = {
     locked: "border-line/80 bg-surface-2 text-muted",
-    releasable:
-      "border-honey/40 bg-honey/10 text-honey",
+    releasable: "border-honey/40 bg-honey/10 text-honey",
     forfeit: "border-sting/40 bg-sting/10 text-sting",
   };
   const statusLabel: Record<MyContribution["stakeStatus"], string> = {

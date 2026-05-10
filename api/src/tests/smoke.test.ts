@@ -84,6 +84,9 @@ test("GET /wallets/:address/portfolio returns extended shape with pending payout
   assert.ok(Array.isArray(body.nodes));
   assert.ok(Array.isArray(body.leaves));
   assert.ok(Array.isArray(body.pendingByCampaign));
+  for (const row of body.pendingByCampaign as Array<{ breakdown: unknown }>) {
+    assert.ok(Array.isArray(row.breakdown));
+  }
   assert.ok(Array.isArray(body.claimHistory));
   assert.equal(typeof body.stakedSol, "string");
   assert.equal(typeof body.pendingPayoutsUsdc, "string");

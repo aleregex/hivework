@@ -74,6 +74,12 @@ export type ApiLeafByRef = {
   path: [ApiNode, ApiNode, ApiNode];
 };
 
+export type ApiPortfolioPendingBreakdownRow = {
+  contributionId: string;
+  kind: "node" | "leaf";
+  pendingUsdc: string;
+};
+
 export type ApiPortfolioPendingRow = {
   campaignId: string;
   campaignName: string;
@@ -81,6 +87,7 @@ export type ApiPortfolioPendingRow = {
   contributingNodes: number;
   pendingUsdc: string;
   status: "active" | "claimable";
+  breakdown: ApiPortfolioPendingBreakdownRow[];
 };
 
 export type ApiPortfolioClaimRow = {

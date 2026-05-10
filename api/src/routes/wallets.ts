@@ -15,6 +15,12 @@ const LEAF_BONUS = 0.3;
 const POS_FACTOR = { L1: 1.0, L2: 0.7, L3: 0.5 } as const;
 const POS_FACTOR_LEAF = 0.3;
 
+const PendingBreakdownEntrySchema = z.object({
+  contributionId: z.string(),
+  kind: z.enum(["node", "leaf"]),
+  pendingUsdc: z.string(),
+});
+
 const PendingByCampaignSchema = z.object({
   campaignId: z.string(),
   campaignName: z.string(),
@@ -22,6 +28,10 @@ const PendingByCampaignSchema = z.object({
   contributingNodes: z.number().int(),
   pendingUsdc: z.string(),
   status: z.enum(["active", "claimable"]),
+  // Per-contribution breakdown of pendingUsdc. Lets the per-campaign earnings
+  // panel show "node X earned $Y" without re-running the formula client-side.
+  // Ids matching `kind: "node"` resolve in nodes_metadata; "leaf" in leaves_metadata.
+  breakdown: z.array(PendingBreakdownEntrySchema),
 });
 
 const ClaimHistoryEntrySchema = z.object({
@@ -115,6 +125,7 @@ const walletsRoutes: FastifyPluginAsync = async (app) => {
         : [];
       const pathNodeById = new Map(pathNodes.map((n) => [n.id, n]));
 
+      type ContribKind = "node" | "leaf";
       type PerCampaign = {
         campaignId: string;
         campaignName: string;
@@ -122,6 +133,8 @@ const walletsRoutes: FastifyPluginAsync = async (app) => {
         contributingIds: Set<string>;
         pendingUsdc: number;
         status: "active" | "claimable";
+        // Sum of credits per individual contribution id within this campaign.
+        breakdown: Map<string, { kind: ContribKind; pendingUsdc: number }>;
       };
       const perCampaign = new Map<string, PerCampaign>();
 
@@ -170,34 +183,45 @@ const walletsRoutes: FastifyPluginAsync = async (app) => {
 
         const distributable = value * (1 - PLATFORM_FEE);
 
-        let walletCredit = 0;
-        const newContribIds: string[] = [];
+        const contribCredits: { id: string; kind: ContribKind; credit: number }[] = [];
         for (let i = 0; i < pNodes.length; i++) {
           if (pNodes[i].creatorWallet === address) {
-            walletCredit += (nodeWeights[i] / total) * distributable;
-            newContribIds.push(pNodes[i].id);
+            const credit = (nodeWeights[i] / total) * distributable;
+            contribCredits.push({ id: pNodes[i].id, kind: "node", credit });
           }
         }
         if (leaf.creatorWallet === address) {
           const leafBase = (leafWeight / total) * distributable;
-          walletCredit += leafBase * (1 + LEAF_BONUS);
-          newContribIds.push(leaf.id);
+          contribCredits.push({
+            id: leaf.id,
+            kind: "leaf",
+            credit: leafBase * (1 + LEAF_BONUS),
+          });
         }
+        const walletCredit = contribCredits.reduce((s, c) => s + c.credit, 0);
         if (walletCredit <= 0) continue;
 
         const cId = leaf.campaign.id;
-        const existing = perCampaign.get(cId);
-        if (existing) {
-          existing.pendingUsdc += walletCredit;
-          for (const id of newContribIds) existing.contributingIds.add(id);
-        } else {
-          perCampaign.set(cId, {
+        let entry = perCampaign.get(cId);
+        if (!entry) {
+          entry = {
             campaignId: cId,
             campaignName: leaf.campaign.productName,
             brandName: leaf.campaign.brandName,
-            contributingIds: new Set(newContribIds),
-            pendingUsdc: walletCredit,
+            contributingIds: new Set<string>(),
+            pendingUsdc: 0,
             status: leaf.campaign.status === "closed" ? "claimable" : "active",
+            breakdown: new Map(),
+          };
+          perCampaign.set(cId, entry);
+        }
+        entry.pendingUsdc += walletCredit;
+        for (const c of contribCredits) {
+          entry.contributingIds.add(c.id);
+          const prev = entry.breakdown.get(c.id);
+          entry.breakdown.set(c.id, {
+            kind: c.kind,
+            pendingUsdc: (prev?.pendingUsdc ?? 0) + c.credit,
           });
         }
       }
@@ -209,6 +233,11 @@ const walletsRoutes: FastifyPluginAsync = async (app) => {
         contributingNodes: c.contributingIds.size,
         pendingUsdc: c.pendingUsdc.toFixed(6),
         status: c.status,
+        breakdown: Array.from(c.breakdown.entries()).map(([id, row]) => ({
+          contributionId: id,
+          kind: row.kind,
+          pendingUsdc: row.pendingUsdc.toFixed(6),
+        })),
       }));
       const pendingTotal = Array.from(perCampaign.values())
         .reduce((sum, c) => sum + c.pendingUsdc, 0)

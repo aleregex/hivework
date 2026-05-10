@@ -408,6 +408,11 @@ Response — replaces `MOCK_PENDING_PAYOUTS`, `MOCK_CLAIMED_PAYOUTS`, `LIFETIME_
     contributingNodes: number;     // distinct nodes/leaves this wallet owns that contributed
     pendingUsdc: string;
     status: "active" | "claimable"; // claimable once the campaign is closed on-chain
+    breakdown: Array<{
+      contributionId: string;       // node id or leaf id
+      kind: "node" | "leaf";
+      pendingUsdc: string;
+    }>;
   }>;
   claimHistory: Array<{
     campaignId: string;
