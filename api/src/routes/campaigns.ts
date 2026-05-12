@@ -263,6 +263,8 @@ const campaignsRoutes: FastifyPluginAsync = async (app) => {
           redirectUrl: body.redirectUrl,
           creatorWallet: body.creatorWallet,
           poolUsdc: body.poolUsdc.toString(),
+          conversionValueUsdc: body.conversionValueUsdc.toString(),
+          conversionCriteria: body.conversionCriteria,
           deadline: new Date(body.deadline),
         },
         include: { _count: { select: { nodes: true, leaves: true } } },

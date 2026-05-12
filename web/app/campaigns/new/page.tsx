@@ -25,27 +25,38 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useHiveworkProgram } from "@/lib/anchor/program";
 import { createCampaignOnchain } from "@/lib/anchor/tx";
+import {
+  RENT_SOL_PER_CAMPAIGN,
+  TX_FEE_SOL,
+} from "@/lib/anchor/stakes";
 import { postCampaignDraft, postCampaignFinalize } from "@/lib/api/hooks";
 
-const formSchema = z.object({
-  brand: z.string().min(2, "Brand name is required"),
-  product: z.string().min(4, "Product description is required"),
-  storefrontUrl: z.string().url("Must be a valid URL"),
-  // USDC has 6 decimals — 0.01 USDC = 10,000 base units. Allowing any
-  // positive amount keeps the form aligned with the on-chain require!(initial_usdc > 0).
-  poolUsdc: z.coerce.number().min(0.01, "Minimum pool is $0.01 USDC"),
-  conversionValueUsdc: z.coerce
-    .number()
-    .min(0.01, "Minimum $0.01 USDC per conversion"),
-  deadlineDays: z.coerce.number().min(1).max(60),
-  conversionCriteria: z.enum([
-    "purchase",
-    "signup",
-    "mint",
-    "subscription",
-    "donation",
-  ]),
-});
+const formSchema = z
+  .object({
+    brand: z.string().min(2, "Brand name is required"),
+    productName: z.string().min(2, "Product name is required"),
+    product: z.string().min(4, "Product description is required"),
+    storefrontUrl: z.string().url("Must be a valid URL"),
+    // USDC has 6 decimals — 0.01 USDC = 10,000 base units. Allowing any
+    // positive amount keeps the form aligned with the on-chain require!(initial_usdc > 0).
+    poolUsdc: z.coerce.number().min(0.01, "Minimum pool is $0.01 USDC"),
+    conversionValueUsdc: z.coerce
+      .number()
+      .min(0.01, "Minimum $0.01 USDC per conversion"),
+    deadlineDays: z.coerce.number().min(1).max(60),
+    conversionCriteria: z.enum([
+      "purchase",
+      "signup",
+      "mint",
+      "subscription",
+      "donation",
+    ]),
+  })
+  .refine((v) => v.poolUsdc >= v.conversionValueUsdc, {
+    message:
+      "Pool must be at least as big as one conversion — otherwise the first sale empties it",
+    path: ["poolUsdc"],
+  });
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -74,6 +85,7 @@ export default function NewCampaignPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       brand: "",
+      productName: "",
       product: "",
       storefrontUrl: "",
       poolUsdc: 1,
@@ -91,7 +103,7 @@ export default function NewCampaignPage() {
 
   async function nextStep() {
     const fields: (keyof FormValues)[][] = [
-      ["brand", "product", "storefrontUrl"],
+      ["brand", "productName", "product", "storefrontUrl"],
       ["poolUsdc", "deadlineDays"],
       ["conversionCriteria", "conversionValueUsdc"],
       [],
@@ -124,13 +136,13 @@ export default function NewCampaignPage() {
       //    confirms. Returns a CUID we use as the draftId.
       const draft = await postCampaignDraft({
         brandName: values.brand,
-        // The form has one product field (description); reuse the brand as
-        // the short name. Real deployments would split these.
-        productName: values.brand,
+        productName: values.productName,
         productDescription: values.product,
         redirectUrl: values.storefrontUrl,
         creatorWallet: publicKey.toBase58(),
         poolUsdc: values.poolUsdc,
+        conversionValueUsdc: values.conversionValueUsdc,
+        conversionCriteria: values.conversionCriteria,
         deadline: deadlineIso,
       });
 
@@ -285,6 +297,16 @@ export default function NewCampaignPage() {
                     <FieldError message={errors.brand?.message} />
                   </div>
                   <div className="grid gap-2">
+                    <Label htmlFor="productName">Product name</Label>
+                    <Input
+                      id="productName"
+                      placeholder="Yungas Espresso 250g"
+                      aria-invalid={!!errors.productName}
+                      {...register("productName")}
+                    />
+                    <FieldError message={errors.productName?.message} />
+                  </div>
+                  <div className="grid gap-2">
                     <Label htmlFor="product">Product description</Label>
                     <Textarea
                       id="product"
@@ -384,7 +406,8 @@ export default function NewCampaignPage() {
               {step === 3 && (
                 <div className="flex flex-col gap-3 rounded-md border border-wax bg-bg2 p-4 text-sm">
                   <Row label="Brand" value={values.brand} />
-                  <Row label="Product" value={values.product} />
+                  <Row label="Product" value={values.productName} />
+                  <Row label="Description" value={values.product} />
                   <Row label="Storefront" value={values.storefrontUrl} />
                   <Row label="Pool" value={`$${values.poolUsdc} USDC`} />
                   <Row label="Deadline" value={`${values.deadlineDays} days`} />
@@ -396,9 +419,24 @@ export default function NewCampaignPage() {
                     label="Per-conversion payout"
                     value={`$${values.conversionValueUsdc} USDC`}
                   />
-                  <div className="mt-2 rounded border border-honey/30 bg-honey/5 p-3 text-xs text-honey">
-                    Phantom will ask you to sign 1 transaction: create campaign
-                    PDA + transfer ${values.poolUsdc} USDC to escrow.
+                  <div className="mt-2 rounded border border-honey/30 bg-honey/5 p-3 text-xs leading-relaxed text-honey">
+                    <p className="font-medium">
+                      Phantom will sign 1 transaction with this cost breakdown:
+                    </p>
+                    <ul className="mt-1.5 space-y-0.5 font-mono text-[11px] text-honey-soft">
+                      <li>
+                        · pool ${values.poolUsdc} USDC — transferred to the
+                        on-chain escrow
+                      </li>
+                      <li>
+                        · rent ~{RENT_SOL_PER_CAMPAIGN.toFixed(5)} SOL — Solana
+                        storage deposit (campaign PDA + escrow ATA), refundable
+                      </li>
+                      <li>
+                        · fee ~{TX_FEE_SOL.toFixed(6)} SOL — network gas, not
+                        refundable
+                      </li>
+                    </ul>
                   </div>
                 </div>
               )}

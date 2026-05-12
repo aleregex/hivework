@@ -5,6 +5,12 @@ export type ApiNodeLevel = "L1" | "L2" | "L3";
 export type ApiPlatform = "tiktok" | "instagram" | "x" | "youtube" | "other";
 export type ApiCampaignStatus = "draft" | "active" | "closed";
 export type ApiDraftStatus = "draft" | "finalized";
+export type ApiConversionCriteria =
+  | "purchase"
+  | "signup"
+  | "mint"
+  | "subscription"
+  | "donation";
 
 export type ApiCampaignSummary = {
   id: string;
@@ -15,6 +21,9 @@ export type ApiCampaignSummary = {
   redirectUrl: string;
   creatorWallet: string;
   poolUsdc: string;
+  /** USDC charged per conversion. Drives the buy page price. */
+  conversionValueUsdc: string;
+  conversionCriteria: ApiConversionCriteria;
   /** ISO 8601 timestamp when the campaign closes. Null for legacy rows. */
   deadline: string | null;
   createdAt: string;

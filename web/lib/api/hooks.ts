@@ -117,6 +117,13 @@ export async function postCampaignDraft(input: {
   redirectUrl: string;
   creatorWallet: string;
   poolUsdc: number;
+  conversionValueUsdc: number;
+  conversionCriteria:
+    | "purchase"
+    | "signup"
+    | "mint"
+    | "subscription"
+    | "donation";
   /** ISO 8601 timestamp when the campaign closes. */
   deadline: string;
   brandLogoUrl?: string | null;

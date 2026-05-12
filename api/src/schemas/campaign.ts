@@ -5,6 +5,14 @@ import {
   PubkeySchema,
 } from "./shared.js";
 
+export const ConversionCriteriaSchema = z.enum([
+  "purchase",
+  "signup",
+  "mint",
+  "subscription",
+  "donation",
+]);
+
 export const CampaignStatsSchema = z.object({
   nodeCount: z.number().int(),
   leafCount: z.number().int(),
@@ -28,23 +36,35 @@ export const CampaignSummarySchema = z.object({
   redirectUrl: z.string(),
   creatorWallet: z.string(),
   poolUsdc: z.string(),
+  conversionValueUsdc: z.string(),
+  conversionCriteria: ConversionCriteriaSchema,
   deadline: z.string().nullable(),
   createdAt: z.string(),
   stats: CampaignStatsSchema,
 });
 
-export const CreateCampaignDraftBody = z.object({
-  brandName: z.string().min(1).max(120),
-  brandLogoUrl: z.string().url().optional().nullable(),
-  productName: z.string().min(1).max(200),
-  productImageUrl: z.string().url().optional().nullable(),
-  productDescription: z.string().min(1).max(2_000),
-  redirectUrl: z.string().url(),
-  creatorWallet: PubkeySchema,
-  poolUsdc: z.coerce.number().nonnegative().max(10_000_000),
-  /** ISO 8601 timestamp when the campaign should close. */
-  deadline: z.string().datetime(),
-});
+export const CreateCampaignDraftBody = z
+  .object({
+    brandName: z.string().min(1).max(120),
+    brandLogoUrl: z.string().url().optional().nullable(),
+    productName: z.string().min(1).max(200),
+    productImageUrl: z.string().url().optional().nullable(),
+    productDescription: z.string().min(1).max(2_000),
+    redirectUrl: z.string().url(),
+    creatorWallet: PubkeySchema,
+    poolUsdc: z.coerce.number().positive().max(10_000_000),
+    /** USDC charged per conversion. Drives the buy page price + the on-chain
+     *  register_conversion(value) call. */
+    conversionValueUsdc: z.coerce.number().positive().max(10_000),
+    conversionCriteria: ConversionCriteriaSchema.default("purchase"),
+    /** ISO 8601 timestamp when the campaign should close. */
+    deadline: z.string().datetime(),
+  })
+  .refine((b) => b.poolUsdc >= b.conversionValueUsdc, {
+    message:
+      "pool_usdc must be ≥ conversion_value_usdc — the pool has to cover at least one conversion",
+    path: ["poolUsdc"],
+  });
 
 export const FinalizeCampaignBody = z.object({
   draftId: z.string().min(1),
@@ -80,6 +100,8 @@ export function mapCampaign(
     redirectUrl: c.redirectUrl,
     creatorWallet: c.creatorWallet,
     poolUsdc: c.poolUsdc.toString(),
+    conversionValueUsdc: c.conversionValueUsdc.toString(),
+    conversionCriteria: c.conversionCriteria,
     deadline: c.deadline ? c.deadline.toISOString() : null,
     createdAt: c.createdAt.toISOString(),
     stats: {

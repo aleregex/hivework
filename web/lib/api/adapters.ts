@@ -169,10 +169,9 @@ export function adaptLeafBuyContext(api: ApiLeafByRef): LeafBuyContext {
     leaf: path[path.length - 1],
     campaign: adaptCampaign(api.campaign),
     path,
-    // The api doesn't surface conversion_value_usdc per campaign yet (it lives
-    // on-chain only). Default to a presentable demo price; replace once the
-    // campaign payload exposes it.
-    pricingUsdc: 0.001,
+    // Real per-conversion price set by the brand at campaign creation time.
+    // Persisted in CampaignMetadata.conversionValueUsdc.
+    pricingUsdc: Number(api.campaign.conversionValueUsdc),
   };
 }
 
