@@ -1,6 +1,6 @@
 # `web/` — Hivework Frontend
 
-> **Group C.** The user-facing surface of Hivework: brand campaign creation, the live tree visualization that is the demo's centerpiece, the buyer `/buy` flow, the creator portfolio, and the USDC cascade animation that plays at campaign close.
+> The user-facing surface of Hivework: brand campaign creation, the live tree visualization that is the demo's centerpiece, the buyer `/buy` flow, the creator portfolio, and the USDC cascade animation that plays at campaign close.
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=white)](https://react.dev)
