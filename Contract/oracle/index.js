@@ -51,7 +51,7 @@ const provider = new AnchorProvider(connection, wallet, { preflightCommitment: '
 
 let program;
 try {
-  const idl = require('../target/idl/hivework.json');
+  const idl = require('../idl/hivework.json');
   const programId = new PublicKey(PROGRAM_ID_STR || idl.address);
   program = new Program(idl, provider);
   console.log(`Programa cargado: ${programId.toBase58()}`);

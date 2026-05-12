@@ -96,7 +96,7 @@ const campaignsRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
-      const [nodes, leaves, counts] = await Promise.all([
+      const [nodes, leaves, counts, leafConversions] = await Promise.all([
         app.prisma.nodeMetadata.findMany({
           where: { campaignId: id },
           orderBy: [{ level: "asc" }, { createdAt: "asc" }],
@@ -106,7 +106,20 @@ const campaignsRoutes: FastifyPluginAsync = async (app) => {
           orderBy: { createdAt: "asc" },
         }),
         getCampaignActivityCounts(app.prisma, [id]),
+        app.prisma.pendingConversion.groupBy({
+          by: ["leafId"],
+          where: {
+            leaf: { campaignId: id },
+            status: { in: ["pushed_to_chain", "verified"] },
+          },
+          _count: { _all: true },
+        }) as unknown as Promise<
+          { leafId: string; _count: { _all: number } }[]
+        >,
       ]);
+      const leafConversionsById = new Map(
+        leafConversions.map((r) => [r.leafId, r._count._all]),
+      );
 
       return {
         campaign: mapCampaign(
@@ -114,7 +127,11 @@ const campaignsRoutes: FastifyPluginAsync = async (app) => {
           counts.get(id) ?? { clickCount: 0, conversionsCount: 0 },
         ),
         nodes: nodes.map(mapNode),
-        leaves: leaves.map(mapLeaf),
+        leaves: leaves.map((l) =>
+          mapLeaf(l, {
+            conversionsCount: leafConversionsById.get(l.id) ?? 0,
+          }),
+        ),
       };
     },
   );

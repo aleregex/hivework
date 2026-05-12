@@ -272,7 +272,7 @@ const walletsRoutes: FastifyPluginAsync = async (app) => {
       return {
         wallet: address,
         nodes: nodes.map(mapNode),
-        leaves: leaves.map(mapLeaf),
+        leaves: leaves.map((l) => mapLeaf(l)),
         stakedSol: stakedSol.toFixed(9),
         pendingPayoutsUsdc: pendingTotal,
         pendingByCampaign,

@@ -83,8 +83,11 @@ export function usePortfolio(address: string | undefined) {
 }
 
 /**
- * POST /demo/convert. Returns the pending conversion id; the SSE stream will
- * confirm it on-chain a few seconds later.
+ * POST /demo/convert. The api persists a pending row and forwards to the
+ * oracle webhook. Status reflects what the oracle replied:
+ *   - "pushed_to_chain": oracle signed + sent registerConversion, txSignature set
+ *   - "pending": webhook not configured or unreachable; oracle poller will retry
+ *   - "rejected": oracle returned 4xx (anti-fraud, backend verify, etc.)
  */
 export async function postDemoConvert(input: {
   refCode: string;
@@ -95,7 +98,8 @@ export async function postDemoConvert(input: {
   return apiFetch<{
     pendingConversionId: string;
     leafId: string;
-    status: "pending";
+    status: "pending" | "pushed_to_chain" | "rejected";
+    txSignature: string | null;
     createdAt: string;
   }>("/demo/convert", { method: "POST", json: input });
 }

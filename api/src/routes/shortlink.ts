@@ -28,7 +28,7 @@ const shortlinkRoutes: FastifyPluginAsync = async (app) => {
 
       const leaf = await app.prisma.leafMetadata.findUnique({
         where: { refCode },
-        include: { campaign: { select: { redirectUrl: true } } },
+        select: { id: true, status: true },
       });
       if (!leaf || leaf.status !== "finalized") {
         return reply
@@ -60,7 +60,12 @@ const shortlinkRoutes: FastifyPluginAsync = async (app) => {
           });
       });
 
-      return reply.redirect(leaf.campaign.redirectUrl, 302);
+      // All shortlinks redirect to the demo buy page on the web frontend.
+      // We ignore campaign.redirect_url for now — the path is always
+      // /buy/<refCode>, and the host comes from FRONTEND_URL so it adapts
+      // to whichever env (localhost, Vercel preview, prod) the api runs in.
+      const frontendUrl = (process.env.FRONTEND_URL ?? "http://localhost:3000").replace(/\/$/, "");
+      return reply.redirect(`${frontendUrl}/buy/${refCode}`, 302);
     },
   );
 };

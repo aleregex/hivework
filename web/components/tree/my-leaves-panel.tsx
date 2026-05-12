@@ -156,14 +156,14 @@ function LeafRow({ leaf }: { leaf: MyLeafEnriched }) {
               )}
             </button>
             <Button asChild variant="outline" size="sm" className="h-7 px-2">
-              <Link
-                href={`/buy/${leaf.refCode}`}
+              <a
+                href={url}
                 target="_blank"
                 rel="noreferrer"
-                title="Test the storefront"
+                title="Open referral link"
               >
                 <ExternalLink className="h-3 w-3" />
-              </Link>
+              </a>
             </Button>
           </div>
 

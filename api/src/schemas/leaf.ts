@@ -17,6 +17,7 @@ export const LeafSchema = z.object({
   contentUrl: z.string().nullable(),
   platform: PlatformSchema,
   stakeSol: z.string(),
+  conversionsCount: z.number().int(),
   status: DraftStatusSchema,
   createdAt: z.string(),
 });
@@ -45,7 +46,10 @@ export const FinalizeLeafBody = z.object({
   onchainPda: PubkeySchema,
 });
 
-export function mapLeaf(l: LeafMetadata): z.infer<typeof LeafSchema> {
+export function mapLeaf(
+  l: LeafMetadata,
+  extras: { conversionsCount: number } = { conversionsCount: 0 },
+): z.infer<typeof LeafSchema> {
   return {
     id: l.id,
     onchainPda: l.onchainPda,
@@ -56,6 +60,7 @@ export function mapLeaf(l: LeafMetadata): z.infer<typeof LeafSchema> {
     contentUrl: l.contentUrl,
     platform: l.platform,
     stakeSol: l.stakeSol.toString(),
+    conversionsCount: extras.conversionsCount,
     status: l.status,
     createdAt: l.createdAt.toISOString(),
   };

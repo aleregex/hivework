@@ -114,9 +114,7 @@ export function adaptLeaf(l: ApiLeaf): TreeNode {
     authorHandle: shortHandle(l.creatorWallet),
     stakeSol: Number(l.stakeSol),
     forks: 0,
-    // Per-leaf conversion counts aren't included in the campaign detail; the
-    // SSE stream populates them at runtime once Tier 2 lands.
-    conversions: 0,
+    conversions: l.conversionsCount,
     payoutUsdc: 0,
     refCode: l.refCode,
     onchainPda: l.onchainPda,
@@ -174,7 +172,7 @@ export function adaptLeafBuyContext(api: ApiLeafByRef): LeafBuyContext {
     // The api doesn't surface conversion_value_usdc per campaign yet (it lives
     // on-chain only). Default to a presentable demo price; replace once the
     // campaign payload exposes it.
-    pricingUsdc: 24,
+    pricingUsdc: 0.001,
   };
 }
 
