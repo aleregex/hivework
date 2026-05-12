@@ -11,6 +11,7 @@ import { useCampaignConversions } from "@/lib/api/hooks";
 import { useHiveworkProgram } from "@/lib/anchor/program";
 import {
   closeAndDistributeOnchain,
+  closeCampaignOnchain,
   deriveConversionPda,
   withdrawUnusedUsdcOnchain,
 } from "@/lib/anchor/tx";
@@ -81,6 +82,16 @@ export function CloseCampaignControls({
     let processed = 0;
     let skipped = 0;
     try {
+      if (!isClosed) {
+        try {
+          await closeCampaignOnchain(program, { campaign, authority: publicKey });
+        } catch (err) {
+          console.error("close_campaign explicitly failed", err);
+          // We can ignore some errors here if it was already closed, but the
+          // Rust side handles it gracefully.
+        }
+      }
+
       for (const c of conversionsResp.conversions) {
         const leaf = new PublicKey(c.leafPda);
         const idBytes = pad16(c.conversionIdSeed);

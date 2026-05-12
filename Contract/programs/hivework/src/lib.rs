@@ -312,6 +312,25 @@ pub mod hivework {
         Ok(())
     }
 
+    pub fn close_campaign(ctx: Context<CloseCampaign>) -> Result<()> {
+        let clock = Clock::get()?;
+        let campaign = &mut ctx.accounts.campaign;
+        require!(
+            clock.unix_timestamp >= campaign.deadline || campaign.is_closed,
+            HiveworkError::CampaignNotClosed
+        );
+
+        if !campaign.is_closed {
+            campaign.is_closed = true;
+            emit!(CampaignClosed {
+                campaign: campaign.key(),
+                conversions_processed: campaign.conversions_processed,
+            });
+        }
+
+        Ok(())
+    }
+
     pub fn close_and_distribute(ctx: Context<CloseAndDistribute>) -> Result<()> {
         let clock = Clock::get()?;
         let campaign = &mut ctx.accounts.campaign;
@@ -870,6 +889,14 @@ pub struct RegisterConversion<'info> {
     )]
     pub oracle: Signer<'info>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CloseCampaign<'info> {
+    #[account(mut, has_one = authority)]
+    pub campaign: Account<'info, Campaign>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]

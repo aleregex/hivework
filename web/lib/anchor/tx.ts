@@ -285,6 +285,29 @@ export async function registerConversionOnchain(
   return { conversionPda, signature };
 }
 
+// ---------- close_campaign ----------
+// Explicitly close a campaign, needed when there are 0 conversions.
+
+export type CloseCampaignArgs = {
+  campaign: PublicKey;
+  authority: PublicKey;
+};
+
+export async function closeCampaignOnchain(
+  program: Program,
+  args: CloseCampaignArgs
+): Promise<{ signature: string }> {
+  // @ts-expect-error - closeCampaign will be available in the IDL after running `anchor build`
+  const signature = await program.methods
+    .closeCampaign()
+    .accountsStrict({
+      campaign: args.campaign,
+      authority: args.authority,
+    })
+    .rpc();
+  return { signature };
+}
+
 // ---------- close_and_distribute ----------
 // Processes ONE conversion per call. Caller iterates over every pending
 // conversion to fully distribute the campaign.
