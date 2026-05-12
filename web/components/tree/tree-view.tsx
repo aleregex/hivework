@@ -431,6 +431,7 @@ export function TreeView({
         nodeL3: new PublicKey(visual.onchainPda),
         refCode,
         metadata: { contentUrl: null, platform: "other" },
+        metadataCuid: draftLeaf.id,
       });
 
       // 3) Finalize the api row + consume the ref_code reservation.

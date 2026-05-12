@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PublicKey } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Coins, Lock, Loader2, Sparkles, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,11 @@ import {
 } from "@/components/ui/dialog";
 import { useCampaign, usePortfolio } from "@/lib/api/hooks";
 import { adaptMyEarningsForCampaign } from "@/lib/api/adapters";
+import { useHiveworkProgram } from "@/lib/anchor/program";
+import {
+  claimLeafPayoutOnchain,
+  claimPayoutOnchain,
+} from "@/lib/anchor/tx";
 import type {
   MyContribution,
   MyCampaignEarnings,
@@ -159,7 +166,12 @@ export function YourEarningsStrip({ campaignId }: Props) {
         </div>
       </section>
 
-      <WithdrawDialog open={open} onOpenChange={setOpen} earnings={earnings} />
+      <WithdrawDialog
+        open={open}
+        onOpenChange={setOpen}
+        earnings={earnings}
+        campaignId={campaignId}
+      />
     </>
   );
 }
@@ -172,11 +184,17 @@ function WithdrawDialog({
   open,
   onOpenChange,
   earnings,
+  campaignId,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   earnings: MyCampaignEarnings;
+  campaignId: string;
 }) {
+  const { publicKey } = useWallet();
+  const program = useHiveworkProgram();
+  const { data: portfolio } = usePortfolio(publicKey?.toBase58());
+  const queryClient = useQueryClient();
   const [claiming, setClaiming] = useState(false);
   const [releasing, setReleasing] = useState(false);
 
@@ -187,27 +205,118 @@ function WithdrawDialog({
   const closesInDays = Math.floor(Math.max(earnings.closesInHours, 0) / 24);
   const closesInHoursMod = Math.max(earnings.closesInHours, 0) % 24;
 
+  // Single Anchor flow: claim_payout / claim_leaf_payout transfers the
+  // accrued USDC AND releases the locked stake atomically when the node had
+  // ≥1 conversion. So "Claim" and "Release stake" both route through this.
+  async function executeClaim(): Promise<{ sigs: string[]; skipped: number }> {
+    if (!program || !publicKey || !portfolio) {
+      throw new Error("Wallet not connected");
+    }
+    const row = portfolio.pendingByCampaign.find(
+      (r) => r.campaignId === campaignId
+    );
+    if (!row?.campaignOnchainPda) {
+      throw new Error("Campaign is not finalized on-chain");
+    }
+    const usdcMintStr = process.env.NEXT_PUBLIC_USDC_MINT;
+    if (!usdcMintStr) throw new Error("Missing NEXT_PUBLIC_USDC_MINT");
+    const usdcMint = new PublicKey(usdcMintStr);
+    const campaign = new PublicKey(row.campaignOnchainPda);
+
+    const nodePdas = new Map<string, string>();
+    const leafPdas = new Map<string, string>();
+    for (const n of portfolio.nodes) {
+      if (n.campaignId === campaignId && n.onchainPda) {
+        nodePdas.set(n.id, n.onchainPda);
+      }
+    }
+    for (const l of portfolio.leaves) {
+      if (l.campaignId === campaignId && l.onchainPda) {
+        leafPdas.set(l.id, l.onchainPda);
+      }
+    }
+
+    const sigs: string[] = [];
+    let skipped = 0;
+    for (const b of row.breakdown) {
+      if (Number(b.pendingUsdc) <= 0) {
+        skipped++;
+        continue;
+      }
+      if (b.kind === "node") {
+        const pda = nodePdas.get(b.contributionId);
+        if (!pda) {
+          skipped++;
+          continue;
+        }
+        const { signature } = await claimPayoutOnchain(program, {
+          node: new PublicKey(pda),
+          campaign,
+          usdcMint,
+          creator: publicKey,
+        });
+        sigs.push(signature);
+      } else {
+        const pda = leafPdas.get(b.contributionId);
+        if (!pda) {
+          skipped++;
+          continue;
+        }
+        const { signature } = await claimLeafPayoutOnchain(program, {
+          leaf: new PublicKey(pda),
+          campaign,
+          usdcMint,
+          creator: publicKey,
+        });
+        sigs.push(signature);
+      }
+    }
+    await queryClient.invalidateQueries({
+      queryKey: ["wallets", publicKey.toBase58(), "portfolio"],
+    });
+    return { sigs, skipped };
+  }
+
   async function handleClaim() {
     setClaiming(true);
-    // TODO(group-a): replace with anchor.claim_payout(campaign, signer).
-    await new Promise((r) => setTimeout(r, 1100));
-    setClaiming(false);
-    toast.success(`Claimed $${earnings.claimableUsdc.toFixed(2)} USDC`, {
-      description: "Funds are in your wallet.",
-    });
-    onOpenChange(false);
+    try {
+      const { sigs } = await executeClaim();
+      if (sigs.length === 0) {
+        toast.message("Nothing to claim");
+      } else {
+        toast.success(`Claimed $${earnings.claimableUsdc.toFixed(2)} USDC`, {
+          description: `${sigs.length} tx · ${sigs[0].slice(0, 8)}…`,
+        });
+      }
+      onOpenChange(false);
+    } catch (err) {
+      console.error("claim failed", err);
+      toast.error(err instanceof Error ? err.message : "Claim failed");
+    } finally {
+      setClaiming(false);
+    }
   }
 
   async function handleRelease() {
+    // Stake release happens inside claim_payout — same tx as the USDC claim.
     setReleasing(true);
-    // TODO(group-a): replace with anchor.release_stake(node_pdas, signer).
-    await new Promise((r) => setTimeout(r, 1100));
-    setReleasing(false);
-    toast.success(
-      `Released ${earnings.releasableStakeSol.toFixed(2)} SOL stake`,
-      { description: "Stake returned to your wallet." }
-    );
-    onOpenChange(false);
+    try {
+      const { sigs } = await executeClaim();
+      if (sigs.length === 0) {
+        toast.message("No stake to release (already settled)");
+      } else {
+        toast.success(
+          `Released ${earnings.releasableStakeSol.toFixed(2)} SOL stake`,
+          { description: `${sigs.length} tx · ${sigs[0].slice(0, 8)}…` }
+        );
+      }
+      onOpenChange(false);
+    } catch (err) {
+      console.error("release failed", err);
+      toast.error(err instanceof Error ? err.message : "Release failed");
+    } finally {
+      setReleasing(false);
+    }
   }
 
   return (

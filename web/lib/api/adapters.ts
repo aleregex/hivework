@@ -52,6 +52,12 @@ function levelToNumber(level: "L1" | "L2" | "L3"): 1 | 2 | 3 {
 
 export function adaptCampaign(c: ApiCampaignSummary): CampaignSummary {
   const conversions = c.stats.conversionsCount;
+  const hoursLeft = c.deadline
+    ? Math.max(
+        0,
+        Math.floor((new Date(c.deadline).getTime() - Date.now()) / 3_600_000),
+      )
+    : 0;
   return {
     id: c.id,
     brand: c.brand.name,
@@ -64,8 +70,7 @@ export function adaptCampaign(c: ApiCampaignSummary): CampaignSummary {
     conversions,
     nodes: c.stats.nodeCount,
     leaves: c.stats.leafCount,
-    // Deadline isn't yet stored server-side; stub at one week.
-    hoursLeft: 168,
+    hoursLeft,
     // No category column today; everything renders as "consumer".
     category: "consumer",
     hot: conversions > 5,
@@ -181,7 +186,10 @@ export function adaptPortfolioPending(p: ApiPortfolio): PendingPayout[] {
     brandHandle: brandHandle(row.brandName),
     nodes: row.contributingNodes,
     pendingUsdc: Number(row.pendingUsdc),
-    closesInHours: row.status === "claimable" ? -1 : 168,
+    // The portfolio row doesn't carry the campaign deadline. Showing -1 keeps
+    // the claim page from rendering a misleading countdown when status is
+    // 'active' — the deadline lives on the campaign detail endpoint.
+    closesInHours: row.status === "claimable" ? -1 : 0,
     status: row.status,
   }));
 }
@@ -353,12 +361,21 @@ export function adaptMyEarningsForCampaign(
     .filter((c) => c.stakeStatus === "forfeit")
     .reduce((s, c) => s + c.stakeSol, 0);
 
+  const hoursLeft = campaignDetail.campaign.deadline
+    ? Math.max(
+        0,
+        Math.floor(
+          (new Date(campaignDetail.campaign.deadline).getTime() - Date.now()) /
+            3_600_000,
+        ),
+      )
+    : 0;
+
   return {
     campaignId,
     brand: campaignDetail.campaign.brand.name,
     campaignStatus: campaignClosed ? "closed" : "active",
-    // Deadline isn't yet stored server-side — same stub as adaptCampaign.
-    closesInHours: campaignClosed ? -1 : 168,
+    closesInHours: campaignClosed ? -1 : hoursLeft,
     pendingUsdc,
     claimableUsdc,
     stakeSol,

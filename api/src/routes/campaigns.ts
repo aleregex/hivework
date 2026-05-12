@@ -119,6 +119,110 @@ const campaignsRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  r.get(
+    "/campaigns/:id/conversions",
+    {
+      schema: {
+        tags: ["campaigns"],
+        summary:
+          "List conversions for a campaign ready for close_and_distribute (with full PDA path)",
+        params: z.object({ id: z.string().min(1) }),
+        response: {
+          200: z.object({
+            campaignOnchainPda: z.string().nullable(),
+            conversions: z.array(
+              z.object({
+                pendingConversionId: z.string(),
+                conversionIdSeed: z.string(),
+                leafPda: z.string(),
+                nodeL1Pda: z.string(),
+                nodeL2Pda: z.string(),
+                nodeL3Pda: z.string(),
+                valueUsdc: z.string(),
+                status: z.enum(["pushed_to_chain", "verified"]),
+                pushedTxSig: z.string().nullable(),
+              }),
+            ),
+          }),
+          404: ErrorBodySchema,
+        },
+      },
+    },
+    async (req, reply) => {
+      const { id } = req.params;
+      const campaign = await app.prisma.campaignMetadata.findUnique({
+        where: { id },
+        select: { id: true, onchainPda: true },
+      });
+      if (!campaign) {
+        return reply.code(404).send({
+          error: "campaign_not_found",
+          message: `No campaign ${id}`,
+        });
+      }
+
+      const rows = await app.prisma.pendingConversion.findMany({
+        where: {
+          status: { in: ["pushed_to_chain", "verified"] },
+          leaf: { campaignId: id },
+        },
+        include: {
+          leaf: {
+            select: { id: true, onchainPda: true, path: true },
+          },
+        },
+      });
+
+      const allPathIds = Array.from(
+        new Set(rows.flatMap((r) => r.leaf.path)),
+      );
+      const pathNodes = allPathIds.length
+        ? await app.prisma.nodeMetadata.findMany({
+            where: { id: { in: allPathIds } },
+            select: { id: true, onchainPda: true },
+          })
+        : [];
+      const pdaByNodeId = new Map(pathNodes.map((n) => [n.id, n.onchainPda]));
+
+      const conversions: Array<{
+        pendingConversionId: string;
+        conversionIdSeed: string;
+        leafPda: string;
+        nodeL1Pda: string;
+        nodeL2Pda: string;
+        nodeL3Pda: string;
+        valueUsdc: string;
+        status: "pushed_to_chain" | "verified";
+        pushedTxSig: string | null;
+      }> = [];
+      for (const row of rows) {
+        const leafPda = row.leaf.onchainPda;
+        const l1 = pdaByNodeId.get(row.leaf.path[0]);
+        const l2 = pdaByNodeId.get(row.leaf.path[1]);
+        const l3 = pdaByNodeId.get(row.leaf.path[2]);
+        if (!leafPda || !l1 || !l2 || !l3) continue;
+        conversions.push({
+          pendingConversionId: row.id,
+          // Matches the 16-char seed used by /demo/convert when calling the
+          // oracle. Lets the FE re-derive the on-chain Conversion PDA.
+          conversionIdSeed: row.id.slice(0, 16),
+          leafPda,
+          nodeL1Pda: l1,
+          nodeL2Pda: l2,
+          nodeL3Pda: l3,
+          valueUsdc: row.valueUsdc.toString(),
+          status: row.status as "pushed_to_chain" | "verified",
+          pushedTxSig: row.pushedTxSig,
+        });
+      }
+
+      return {
+        campaignOnchainPda: campaign.onchainPda,
+        conversions,
+      };
+    },
+  );
+
   r.post(
     "/campaigns/draft",
     {
@@ -142,6 +246,7 @@ const campaignsRoutes: FastifyPluginAsync = async (app) => {
           redirectUrl: body.redirectUrl,
           creatorWallet: body.creatorWallet,
           poolUsdc: body.poolUsdc.toString(),
+          deadline: new Date(body.deadline),
         },
         include: { _count: { select: { nodes: true, leaves: true } } },
       });

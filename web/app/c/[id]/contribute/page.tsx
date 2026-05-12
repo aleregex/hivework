@@ -124,6 +124,7 @@ export default function ContributePage({ params }: PageProps) {
         level: values.level as 1 | 2 | 3,
         parentNode,
         metadata: { title: values.title, description: values.description },
+        metadataCuid: draft.id,
       });
       toast.success(`Node staked ${stakeForNode} SOL on devnet`, {
         description: `tx ${signature.slice(0, 8)}…${signature.slice(-4)}`,

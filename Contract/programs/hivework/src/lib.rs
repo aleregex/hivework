@@ -69,7 +69,9 @@ pub mod hivework {
         gamma_weight: u8,
         campaign_id: u32,
         initial_usdc: u64,
+        metadata_cuid: String,
     ) -> Result<()> {
+        require!(metadata_cuid.len() <= MAX_CUID_LEN, HiveworkError::DataTooLarge);
         require!(
             (alpha_weight as u16) + (beta_weight as u16) + (gamma_weight as u16) == 100,
             HiveworkError::InvalidWeights
@@ -111,6 +113,7 @@ pub mod hivework {
             authority: campaign.authority,
             total_usdc: campaign.total_usdc,
             deadline: campaign.deadline,
+            metadata_cuid,
         });
 
         Ok(())
@@ -121,7 +124,9 @@ pub mod hivework {
         level: u8,
         metadata_hash: [u8; 32],
         bytes_metadata: u32,
+        metadata_cuid: String,
     ) -> Result<()> {
+        require!(metadata_cuid.len() <= MAX_CUID_LEN, HiveworkError::DataTooLarge);
         require!(!ctx.accounts.campaign.is_closed, HiveworkError::CampaignClosed);
         require!((1..=3).contains(&level), HiveworkError::InvalidLevel);
 
@@ -176,6 +181,9 @@ pub mod hivework {
             campaign: node.campaign,
             creator: node.creator,
             level: node.level,
+            parent_node: node.parent_node,
+            stake_lamports: node.stake_locked,
+            metadata_cuid,
         });
 
         Ok(())
@@ -185,7 +193,9 @@ pub mod hivework {
         ctx: Context<CreateLeaf>,
         ref_code: [u8; 8],
         bytes_metadata: u32,
+        metadata_cuid: String,
     ) -> Result<()> {
+        require!(metadata_cuid.len() <= MAX_CUID_LEN, HiveworkError::DataTooLarge);
         require!(!ctx.accounts.campaign.is_closed, HiveworkError::CampaignClosed);
 
         require!(ctx.accounts.node_l1.level == 1, HiveworkError::InvalidGenealogicalPath);
@@ -240,6 +250,9 @@ pub mod hivework {
             campaign: leaf.campaign,
             creator: leaf.creator,
             ref_code: leaf.ref_code,
+            path: leaf.genealogical_path,
+            stake_lamports: leaf.stake_locked,
+            metadata_cuid,
         });
 
         Ok(())
@@ -293,6 +306,7 @@ pub mod hivework {
             campaign: conversion.campaign,
             leaf: conversion.leaf,
             value: conversion.value,
+            conversion_id,
         });
 
         Ok(())
@@ -372,19 +386,49 @@ pub mod hivework {
             gamma,
         );
 
-        let total_weight = w_l1 + w_l2 + w_l3 + w_leaf;
+        let total_weight = (w_l1 as u128)
+            + (w_l2 as u128)
+            + (w_l3 as u128)
+            + (w_leaf as u128);
         require!(total_weight > 0, HiveworkError::MathError);
 
-        let fee = (conversion.value * (campaign.platform_fee as u64)) / 100;
-        let distributable = conversion.value - fee;
+        // Compute payouts in u128 to avoid overflow when conversion.value and
+        // the weights are both large. Final per-recipient amounts always fit
+        // back into u64 because they're bounded by conversion.value (u64).
+        let value_u128 = conversion.value as u128;
+        let fee = value_u128
+            .checked_mul(campaign.platform_fee as u128)
+            .ok_or_else(|| error!(HiveworkError::MathError))?
+            / 100;
+        let distributable = value_u128
+            .checked_sub(fee)
+            .ok_or_else(|| error!(HiveworkError::MathError))?;
 
-        let leaf_bonus = (distributable * (LEAF_BONUS_PERCENTAGE as u64)) / 100;
-        let shared_pool = distributable - leaf_bonus;
+        let leaf_bonus = distributable
+            .checked_mul(LEAF_BONUS_PERCENTAGE as u128)
+            .ok_or_else(|| error!(HiveworkError::MathError))?
+            / 100;
+        let shared_pool = distributable
+            .checked_sub(leaf_bonus)
+            .ok_or_else(|| error!(HiveworkError::MathError))?;
 
-        let l1_share = (shared_pool * w_l1) / total_weight;
-        let l2_share = (shared_pool * w_l2) / total_weight;
-        let l3_share = (shared_pool * w_l3) / total_weight;
-        let leaf_share = (shared_pool * w_leaf) / total_weight + leaf_bonus;
+        let share = |w: u128| -> Result<u64> {
+            let s = shared_pool
+                .checked_mul(w)
+                .ok_or_else(|| error!(HiveworkError::MathError))?
+                / total_weight;
+            u64::try_from(s).map_err(|_| error!(HiveworkError::MathError))
+        };
+
+        let l1_share = share(w_l1 as u128)?;
+        let l2_share = share(w_l2 as u128)?;
+        let l3_share = share(w_l3 as u128)?;
+        let leaf_share_base = share(w_leaf as u128)?;
+        let leaf_bonus_u64 =
+            u64::try_from(leaf_bonus).map_err(|_| error!(HiveworkError::MathError))?;
+        let leaf_share = leaf_share_base
+            .checked_add(leaf_bonus_u64)
+            .ok_or_else(|| error!(HiveworkError::MathError))?;
 
         ctx.accounts.node_l1.claimable_usdc = ctx
             .accounts
@@ -408,7 +452,10 @@ pub mod hivework {
             .saturating_add(leaf_share);
 
         // Tracking total asignado a ganadores → permite a la marca retirar el remanente
-        let allocated = l1_share + l2_share + l3_share + leaf_share;
+        let allocated = l1_share
+            .saturating_add(l2_share)
+            .saturating_add(l3_share)
+            .saturating_add(leaf_share);
         campaign.total_to_winners = campaign.total_to_winners.saturating_add(allocated);
 
         conversion.is_processed = true;
@@ -498,6 +545,10 @@ pub mod hivework {
             0
         };
 
+        let node_key = ctx.accounts.node.key();
+        let campaign_key = ctx.accounts.campaign.key();
+        let creator_key = ctx.accounts.creator.key();
+
         let auth_bytes = ctx.accounts.campaign.authority.to_bytes();
         let id_bytes = ctx.accounts.campaign.id.to_le_bytes();
         let bump = ctx.accounts.campaign.bump;
@@ -530,6 +581,15 @@ pub mod hivework {
                 .try_borrow_mut_lamports()? += stake_to_release;
         }
 
+        emit!(PayoutClaimed {
+            campaign: campaign_key,
+            source: node_key,
+            creator: creator_key,
+            kind: PayoutKind::Node,
+            amount_usdc: amount,
+            stake_released_lamports: stake_to_release,
+        });
+
         Ok(())
     }
 
@@ -548,6 +608,10 @@ pub mod hivework {
         } else {
             0
         };
+
+        let leaf_key = ctx.accounts.leaf.key();
+        let campaign_key = ctx.accounts.campaign.key();
+        let creator_key = ctx.accounts.creator.key();
 
         let auth_bytes = ctx.accounts.campaign.authority.to_bytes();
         let id_bytes = ctx.accounts.campaign.id.to_le_bytes();
@@ -580,6 +644,15 @@ pub mod hivework {
                 .to_account_info()
                 .try_borrow_mut_lamports()? += stake_to_release;
         }
+
+        emit!(PayoutClaimed {
+            campaign: campaign_key,
+            source: leaf_key,
+            creator: creator_key,
+            kind: PayoutKind::Leaf,
+            amount_usdc: amount,
+            stake_released_lamports: stake_to_release,
+        });
 
         Ok(())
     }

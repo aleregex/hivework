@@ -193,6 +193,7 @@ export function AddNodeDialog({
         level: childLevel as 1 | 2 | 3,
         parentNode,
         metadata: { title, description },
+        metadataCuid: draft.id,
       });
 
       // 3) Finalize the api row with the resolved PDA.

@@ -20,6 +20,9 @@ const PROGRAM_ID_STR = process.env.PROGRAM_ID;
 // conversiones contra la metadata off-chain antes de firmar".
 // Si está vacío, el oracle confía en el webhook directo (modo demo).
 const BACKEND_VERIFY_URL = process.env.BACKEND_VERIFY_URL || '';
+// Bearer token requerido en el header Authorization para aceptar webhooks.
+// Si se define, el API debe enviarlo en ORACLE_WEBHOOK_TOKEN para que coincida.
+const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN || '';
 
 // Cargar keypair: prioridad ORACLE_KEYPAIR_PATH (formato JSON solana) > ORACLE_PRIVATE_KEY (base58)
 function loadKeypair() {
@@ -111,6 +114,15 @@ function isLegitimate({ walletPubkey, campaignPubkey, ip }) {
 // POST /webhook/conversion — Grupo B envía conversiones
 app.post('/webhook/conversion', async (req, res) => {
   try {
+    // Bearer-token guard. Habilitado solo cuando WEBHOOK_TOKEN está definido.
+    if (WEBHOOK_TOKEN) {
+      const auth = req.headers['authorization'] || '';
+      const expected = `Bearer ${WEBHOOK_TOKEN}`;
+      if (auth !== expected) {
+        return res.status(401).json({ error: 'unauthorized' });
+      }
+    }
+
     const {
       campaign_pubkey,
       leaf_pubkey,

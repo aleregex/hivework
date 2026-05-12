@@ -4,6 +4,7 @@ import { ArrowLeft, Zap } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { TreeView } from "@/components/tree/tree-view";
 import { YourEarningsStrip } from "@/components/tree/your-earnings-strip";
+import { CloseCampaignControls } from "@/components/tree/close-campaign-controls";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { adaptCampaign, adaptTree } from "@/lib/api/adapters";
 import type { ApiCampaignDetail } from "@/lib/api/types";
@@ -127,6 +128,15 @@ export default async function CampaignDetailPage({ params }: PageProps) {
 
       {/* Per-wallet earnings + stake summary, with the Withdraw modal. */}
       <YourEarningsStrip campaignId={campaign.id} />
+
+      {/* Brand-only: close & distribute + withdraw unused USDC. Renders
+       * nothing when the connected wallet isn't the campaign's creator. */}
+      <CloseCampaignControls
+        campaignId={campaign.id}
+        campaignOnchainPda={detail.campaign.onchainPda}
+        campaignCreatorWallet={detail.campaign.creatorWallet}
+        campaignStatus={detail.campaign.status}
+      />
 
       {/* Tree */}
       <div className="mt-4">

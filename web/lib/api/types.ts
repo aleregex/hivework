@@ -15,6 +15,8 @@ export type ApiCampaignSummary = {
   redirectUrl: string;
   creatorWallet: string;
   poolUsdc: string;
+  /** ISO 8601 timestamp when the campaign closes. Null for legacy rows. */
+  deadline: string | null;
   createdAt: string;
   stats: {
     nodeCount: number;
@@ -74,6 +76,23 @@ export type ApiLeafByRef = {
   path: [ApiNode, ApiNode, ApiNode];
 };
 
+export type ApiCampaignConversion = {
+  pendingConversionId: string;
+  conversionIdSeed: string;
+  leafPda: string;
+  nodeL1Pda: string;
+  nodeL2Pda: string;
+  nodeL3Pda: string;
+  valueUsdc: string;
+  status: "pushed_to_chain" | "verified";
+  pushedTxSig: string | null;
+};
+
+export type ApiCampaignConversionsResponse = {
+  campaignOnchainPda: string | null;
+  conversions: ApiCampaignConversion[];
+};
+
 export type ApiPortfolioPendingBreakdownRow = {
   contributionId: string;
   kind: "node" | "leaf";
@@ -82,6 +101,7 @@ export type ApiPortfolioPendingBreakdownRow = {
 
 export type ApiPortfolioPendingRow = {
   campaignId: string;
+  campaignOnchainPda: string | null;
   campaignName: string;
   brandName: string;
   contributingNodes: number;

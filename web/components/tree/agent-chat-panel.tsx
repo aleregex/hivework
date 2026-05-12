@@ -1,21 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, Bot, Send, Sparkles, User } from "lucide-react";
+import { Bot, ExternalLink, Sparkles } from "lucide-react";
 import { type TreeNode } from "@/lib/mocks/tree";
 
 /* ------------------------------------------------------------------ *
- * Mocked agent chat. Deterministic responses keyed off keywords so
- * the demo always lands. The agent's "suggest path" button hands the
- * caller a (hookId, audioId, visualId) triple it can plug straight
- * into the publish flow.
+ * Real-time view of the AI agent's activity inside a campaign tree.
+ * Lists every node + leaf that an agent wallet authored (identified
+ * by `author: "agent"` in the api-adapted tree), newest-first, and
+ * surfaces the highest-converting path so the user can publish along
+ * the same lineage with one click.
  * ------------------------------------------------------------------ */
-
-type Message =
-  | { role: "agent"; kind: "text"; text: string }
-  | { role: "agent"; kind: "suggestion"; text: string; path: PathSuggestion }
-  | { role: "user"; text: string };
 
 export type PathSuggestion = {
   hookId: string;
@@ -26,45 +23,58 @@ export type PathSuggestion = {
 
 type Props = {
   onAcceptPath: (path: PathSuggestion) => void;
-  /** Current tree nodes — used to resolve titles in suggestion bubbles. */
+  /** Current tree nodes — the panel filters for `author === "agent"`. */
   nodes: TreeNode[];
 };
 
-const HELLO: Message = {
-  role: "agent",
-  kind: "text",
-  text: "Hey — I'm the hivework agent. Tell me about your audience (niche, platform, vibe) and I'll suggest a path with the highest expected payout for you.",
-};
-
 export function AgentChatPanel({ onAcceptPath, nodes }: Props) {
-  const [messages, setMessages] = useState<Message[]>([HELLO]);
-  const [input, setInput] = useState("");
-  const [thinking, setThinking] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const agentNodes = useMemo(
+    () =>
+      nodes
+        .filter((n) => n.author === "agent" && n.level >= 1 && n.level <= 4)
+        // Stable ordering: leaves first (they're terminal output), then deeper
+        // levels. Within a level we keep insertion order.
+        .sort((a, b) => b.level - a.level),
+    [nodes],
+  );
 
-  // Stick to bottom on new messages (chat behavior).
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages, thinking]);
+  // Best path = the (L1, L2, L3) triple with the highest descendant conversion
+  // count when at least one agent node is in the chain. Falls back to "no
+  // suggestion yet" when the tree is too sparse.
+  const suggestion = useMemo<{ path: PathSuggestion; conversions: number } | null>(() => {
+    const l1s = nodes.filter((n) => n.level === 1);
+    const l2s = nodes.filter((n) => n.level === 2);
+    const l3s = nodes.filter((n) => n.level === 3);
+    if (!l1s.length || !l2s.length || !l3s.length) return null;
 
-  const send = (raw: string) => {
-    const trimmed = raw.trim();
-    if (!trimmed) return;
-    setMessages((m) => [...m, { role: "user", text: trimmed }]);
-    setInput("");
-    setThinking(true);
-
-    // Mock streaming-ish delay so it feels responsive but not instant.
-    window.setTimeout(
-      () => {
-        const reply = respondTo(trimmed);
-        setMessages((m) => [...m, ...reply]);
-        setThinking(false);
-      },
-      700 + Math.random() * 500
-    );
-  };
+    let best: { path: PathSuggestion; conversions: number } | null = null;
+    for (const v of l3s) {
+      const audio = l2s.find((n) => n.id === v.parentId);
+      if (!audio) continue;
+      const hook = l1s.find((n) => n.id === audio.parentId);
+      if (!hook) continue;
+      const conversions = v.conversions + audio.conversions + hook.conversions;
+      const hasAgent =
+        hook.author === "agent" ||
+        audio.author === "agent" ||
+        v.author === "agent";
+      if (!hasAgent) continue;
+      if (!best || conversions > best.conversions) {
+        best = {
+          path: {
+            hookId: hook.id,
+            audioId: audio.id,
+            visualId: v.id,
+            reason: conversions
+              ? `Highest-converting path involving an agent node: ${conversions} conversions across L1→L3.`
+              : "Agent-authored path — not yet converted, but ready to publish under.",
+          },
+          conversions,
+        };
+      }
+    }
+    return best;
+  }, [nodes]);
 
   return (
     <aside className="flex h-full min-h-[440px] flex-col rounded-lg border border-line bg-surface">
@@ -79,282 +89,152 @@ export function AgentChatPanel({ onAcceptPath, nodes }: Props) {
             </span>
           </span>
           <div>
-            <p className="text-sm font-semibold leading-tight">
-              hivework agent
-            </p>
+            <p className="text-sm font-semibold leading-tight">Agent activity</p>
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
-              mcp · gpt-cola-001
+              authored on-chain via MCP
             </p>
           </div>
         </div>
         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-faint">
-          beta
+          {agentNodes.length} item{agentNodes.length === 1 ? "" : "s"}
         </span>
       </header>
 
-      {/* Conversation */}
-      <div
-        ref={scrollRef}
-        className="flex-1 space-y-3 overflow-y-auto px-4 py-4"
-      >
-        {messages.map((m, i) => (
-          <Bubble
-            key={i}
-            message={m}
-            onAcceptPath={onAcceptPath}
-            nodes={nodes}
-          />
-        ))}
-        {thinking && <ThinkingBubble />}
-      </div>
-
-      {/* Quick prompts — clickable shortcuts so the demo doesn't need typing */}
-      {messages.length <= 1 && (
-        <div className="flex flex-wrap gap-1.5 border-t border-line px-4 py-2.5">
-          {QUICK_PROMPTS.map((p) => (
-            <button
-              key={p}
-              onClick={() => send(p)}
-              className="rounded-full border border-line bg-ink-2 px-2.5 py-1 font-mono text-[10px] text-muted transition-colors hover:border-honey/40 hover:bg-honey/5 hover:text-honey"
-            >
-              {p}
-            </button>
-          ))}
-        </div>
+      {/* Suggestion */}
+      {suggestion && (
+        <SuggestionCard
+          suggestion={suggestion}
+          nodes={nodes}
+          onAcceptPath={onAcceptPath}
+        />
       )}
 
-      {/* Composer */}
-      <form
-        className="flex items-center gap-2 border-t border-line p-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(input);
-        }}
-      >
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Tell the agent about your audience…"
-          className="h-9 flex-1 rounded-md border border-line bg-ink-2 px-3 text-sm placeholder:text-faint focus:border-honey/40 focus:outline-none"
-        />
-        <button
-          type="submit"
-          disabled={!input.trim() || thinking}
-          className="flex h-9 w-9 items-center justify-center rounded-md bg-honey text-ink transition-opacity hover:bg-honey-soft disabled:opacity-40"
-          aria-label="Send"
-        >
-          <Send className="h-4 w-4" />
-        </button>
-      </form>
+      {/* Activity feed */}
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        {agentNodes.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <ul className="space-y-2.5">
+            {agentNodes.map((n) => (
+              <ActivityRow key={n.id} node={n} />
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <footer className="border-t border-line px-4 py-2.5 text-[11px] leading-snug text-muted">
+        Agent wallets stake SOL on every node and earn USDC from the same
+        proportional payout formula as human creators.
+      </footer>
     </aside>
   );
 }
 
-const QUICK_PROMPTS = [
-  "I do fitness on TikTok",
-  "Web3 audience, X/Twitter",
-  "Suggest the highest-paying path",
-];
-
-function Bubble({
-  message,
-  onAcceptPath,
-  nodes,
-}: {
-  message: Message;
-  onAcceptPath: (path: PathSuggestion) => void;
-  nodes: TreeNode[];
-}) {
-  if (message.role === "user") {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex justify-end gap-2"
-      >
-        <div className="max-w-[85%] rounded-md rounded-br-none bg-foreground/10 px-3 py-2 text-sm leading-snug text-foreground">
-          {message.text}
-        </div>
-        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted">
-          <User className="h-3 w-3" />
-        </span>
-      </motion.div>
-    );
-  }
-  if (message.kind === "suggestion") {
-    const path = message.path;
-    const hook = nodes.find((n) => n.id === path.hookId);
-    const audio = nodes.find((n) => n.id === path.audioId);
-    const visual = nodes.find((n) => n.id === path.visualId);
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex gap-2"
-      >
-        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-live/30 bg-live/10 text-live">
-          <Bot className="h-3 w-3" />
-        </span>
-        <div className="max-w-[88%] rounded-md rounded-bl-none border border-honey/30 bg-honey/[0.04] p-3">
-          <p className="text-sm leading-snug text-foreground">{message.text}</p>
-          <div className="mt-2.5 space-y-1 rounded-md border border-line bg-ink-2 p-2.5 font-mono text-[11px] leading-relaxed text-fg-soft">
-            <PathRow label="L1" node={hook} />
-            <PathRow label="L2" node={audio} />
-            <PathRow label="L3" node={visual} />
-          </div>
-          <p className="mt-2 text-[11px] leading-snug text-muted">
-            <span className="text-honey">why · </span>
-            {path.reason}
-          </p>
-          <button
-            onClick={() => onAcceptPath(path)}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-honey px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-ink transition-colors hover:bg-honey-soft"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Use this path
-          </button>
-        </div>
-      </motion.div>
-    );
-  }
+function EmptyState() {
   return (
-    <motion.div
+    <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-[12px] text-muted">
+      <Bot className="h-5 w-5 text-faint" />
+      <p>
+        No agent activity in this campaign yet.
+        <br />
+        Connect an MCP agent or wait for one to drop a hook.
+      </p>
+      <Link
+        href="/agent"
+        className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-honey hover:underline"
+      >
+        How agents join <ExternalLink className="h-2.5 w-2.5" />
+      </Link>
+    </div>
+  );
+}
+
+function ActivityRow({ node }: { node: TreeNode }) {
+  const label =
+    node.level === 1
+      ? "L1 · Hook"
+      : node.level === 2
+        ? "L2 · Audio"
+        : node.level === 3
+          ? "L3 · Visual"
+          : "Leaf · Post";
+  return (
+    <motion.li
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex gap-2"
+      className="flex items-start gap-2 rounded-md border border-line bg-ink-2 p-2.5"
     >
       <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-live/30 bg-live/10 text-live">
         <Bot className="h-3 w-3" />
       </span>
-      <div className="max-w-[85%] rounded-md rounded-bl-none border border-line bg-ink-2 px-3 py-2 text-sm leading-snug text-fg-soft">
-        {message.text}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-faint">
+            {label}
+          </span>
+          <span className="font-mono text-[10px] text-muted">
+            @{node.authorHandle}
+          </span>
+        </div>
+        <p className="mt-1 truncate text-sm leading-snug text-foreground" title={node.title}>
+          {node.title}
+        </p>
+        <div className="mt-1 flex items-center gap-3 font-mono text-[10px] text-muted">
+          <span className="tabular">{node.forks} fork{node.forks === 1 ? "" : "s"}</span>
+          <span className="tabular text-sting">{node.conversions} conv</span>
+          <span className="tabular">{node.stakeSol.toFixed(2)} SOL</span>
+        </div>
       </div>
-    </motion.div>
+    </motion.li>
   );
 }
 
-function PathRow({ label, node }: { label: string; node?: TreeNode }) {
-  if (!node) return null;
+function SuggestionCard({
+  suggestion,
+  nodes,
+  onAcceptPath,
+}: {
+  suggestion: { path: PathSuggestion; conversions: number };
+  nodes: TreeNode[];
+  onAcceptPath: (path: PathSuggestion) => void;
+}) {
+  const hook = nodes.find((n) => n.id === suggestion.path.hookId);
+  const audio = nodes.find((n) => n.id === suggestion.path.audioId);
+  const visual = nodes.find((n) => n.id === suggestion.path.visualId);
+  if (!hook || !audio || !visual) return null;
+
+  return (
+    <div className="border-b border-line bg-honey/[0.04] px-4 py-3">
+      <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-honey">
+        <Sparkles className="h-3 w-3" />
+        suggested path
+      </p>
+      <div className="mt-2 space-y-1 rounded-md border border-line bg-ink-2 p-2.5 font-mono text-[11px] leading-relaxed text-fg-soft">
+        <PathRow label="L1" node={hook} />
+        <PathRow label="L2" node={audio} />
+        <PathRow label="L3" node={visual} />
+      </div>
+      <p className="mt-2 text-[11px] leading-snug text-muted">
+        <span className="text-honey">why · </span>
+        {suggestion.path.reason}
+      </p>
+      <button
+        onClick={() => onAcceptPath(suggestion.path)}
+        className="mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-honey px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-ink transition-colors hover:bg-honey-soft"
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        Use this path
+      </button>
+    </div>
+  );
+}
+
+function PathRow({ label, node }: { label: string; node: TreeNode }) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-faint">{label}</span>
-      <ArrowRight className="h-3 w-3 text-faint" />
       <span className="truncate text-foreground">{node.title}</span>
       <span className="ml-auto text-sting tabular">{node.conversions}c</span>
     </div>
   );
-}
-
-function ThinkingBubble() {
-  return (
-    <div className="flex gap-2">
-      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-live/30 bg-live/10 text-live">
-        <Bot className="h-3 w-3" />
-      </span>
-      <div className="rounded-md rounded-bl-none border border-line bg-ink-2 px-3 py-2.5">
-        <span className="flex items-center gap-1">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="h-1.5 w-1.5 rounded-full bg-muted"
-              style={{
-                animation: `bounce 1.2s ease-in-out ${i * 0.15}s infinite`,
-              }}
-            />
-          ))}
-        </span>
-        <style>{`
-          @keyframes bounce {
-            0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
-            40% { opacity: 1; transform: translateY(-3px); }
-          }
-        `}</style>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ *
- * Mock response logic. Pure function of the input string. We pick from
- * canned suggestions based on keyword matches, falling back to the
- * "highest paying path right now" recommendation.
- * ------------------------------------------------------------------ */
-
-function respondTo(text: string): Message[] {
-  const lower = text.toLowerCase();
-
-  // Path A — hot path (h2 → a3 → v3)
-  const HOT_PATH: PathSuggestion = {
-    hookId: "h2",
-    audioId: "a3",
-    visualId: "v3",
-    reason:
-      "This composition has the highest realized payout right now ($86 across 25 conversions). The trending audio expires in ~6 days, but in the next 48h it's the highest expected $/post.",
-  };
-
-  // Path B — emotional path (h1 → a1 → v1)
-  const EMO_PATH: PathSuggestion = {
-    hookId: "h1",
-    audioId: "a1",
-    visualId: "v1",
-    reason:
-      "Lower volume but very stable conversion rate (12/sec). Best fit for a creator with an emotional / lifestyle audience — the lo-fi audio + condensation visual reads as 'cinematic ad'.",
-  };
-
-  if (/high|max|best|paying|top|hot|trending|tiktok|reach|viral/.test(lower)) {
-    return [
-      {
-        role: "agent",
-        kind: "text",
-        text: "Based on the live tree state, here's the highest-paying path right now:",
-      },
-      {
-        role: "agent",
-        kind: "suggestion",
-        text: "Recommended path · max payout right now",
-        path: HOT_PATH,
-      },
-    ];
-  }
-
-  if (/fitness|wellness|cooking|food|life|emotional|cinem|vlog/.test(lower)) {
-    return [
-      {
-        role: "agent",
-        kind: "text",
-        text: "Got it — for that audience the lifestyle path tends to convert better than the challenger angle:",
-      },
-      {
-        role: "agent",
-        kind: "suggestion",
-        text: "Suggested path · lifestyle audience",
-        path: EMO_PATH,
-      },
-    ];
-  }
-
-  if (/web3|crypto|nft|dao|token/.test(lower)) {
-    return [
-      {
-        role: "agent",
-        kind: "text",
-        text: "Halo Cola is consumer, but for a web3 audience the challenger angle resonates with the 'old vs new guard' narrative. Try this:",
-      },
-      {
-        role: "agent",
-        kind: "suggestion",
-        text: "Suggested path · challenger angle",
-        path: HOT_PATH,
-      },
-    ];
-  }
-
-  return [
-    {
-      role: "agent",
-      kind: "text",
-      text: "Cool. I'll need a hint about your platform or vibe to optimize. Or I can just show you the path with the highest current payout — say 'best paying' and I'll pull it.",
-    },
-  ];
 }

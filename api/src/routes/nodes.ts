@@ -12,6 +12,28 @@ import { ErrorBodySchema } from "../schemas/shared.js";
 const nodesRoutes: FastifyPluginAsync = async (app) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
 
+  r.get(
+    "/nodes/:id",
+    {
+      schema: {
+        tags: ["nodes"],
+        summary: "Fetch a single node by id",
+        params: z.object({ id: z.string().min(1) }),
+        response: { 200: NodeSchema, 404: ErrorBodySchema },
+      },
+    },
+    async (req, reply) => {
+      const { id } = req.params;
+      const node = await app.prisma.nodeMetadata.findUnique({ where: { id } });
+      if (!node) {
+        return reply
+          .code(404)
+          .send({ error: "node_not_found", message: `No node ${id}` });
+      }
+      return mapNode(node);
+    },
+  );
+
   r.post(
     "/nodes/draft",
     {

@@ -426,6 +426,10 @@
         {
           "name": "initial_usdc",
           "type": "u64"
+        },
+        {
+          "name": "metadata_cuid",
+          "type": "string"
         }
       ]
     },
@@ -502,6 +506,10 @@
         {
           "name": "bytes_metadata",
           "type": "u32"
+        },
+        {
+          "name": "metadata_cuid",
+          "type": "string"
         }
       ]
     },
@@ -582,6 +590,10 @@
         {
           "name": "bytes_metadata",
           "type": "u32"
+        },
+        {
+          "name": "metadata_cuid",
+          "type": "string"
         }
       ]
     },
@@ -941,6 +953,19 @@
         127,
         208
       ]
+    },
+    {
+      "name": "PayoutClaimed",
+      "discriminator": [
+        200,
+        39,
+        105,
+        112,
+        116,
+        63,
+        58,
+        149
+      ]
     }
   ],
   "errors": [
@@ -1157,6 +1182,14 @@
           {
             "name": "deadline",
             "type": "i64"
+          },
+          {
+            "name": "metadata_cuid",
+            "docs": [
+              "Off-chain cuid threaded through from the api draft.",
+              "Lets the indexer match an on-chain account to its api row."
+            ],
+            "type": "string"
           }
         ]
       }
@@ -1222,6 +1255,19 @@
           {
             "name": "value",
             "type": "u64"
+          },
+          {
+            "name": "conversion_id",
+            "docs": [
+              "Mirrors the 16-byte conversion_id seed used by the PDA, hex-encoded.",
+              "Indexer joins this back to pending_conversion.id."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
           }
         ]
       }
@@ -1313,6 +1359,23 @@
                 8
               ]
             }
+          },
+          {
+            "name": "path",
+            "type": {
+              "array": [
+                "pubkey",
+                3
+              ]
+            }
+          },
+          {
+            "name": "stake_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "metadata_cuid",
+            "type": "string"
           }
         ]
       }
@@ -1396,6 +1459,73 @@
           {
             "name": "level",
             "type": "u8"
+          },
+          {
+            "name": "parent_node",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "stake_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "metadata_cuid",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PayoutClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "campaign",
+            "type": "pubkey"
+          },
+          {
+            "name": "source",
+            "docs": [
+              "The Node or Leaf PDA whose claimable_usdc was drained."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "kind",
+            "type": {
+              "defined": {
+                "name": "PayoutKind"
+              }
+            }
+          },
+          {
+            "name": "amount_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "stake_released_lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PayoutKind",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Node"
+          },
+          {
+            "name": "Leaf"
           }
         ]
       }

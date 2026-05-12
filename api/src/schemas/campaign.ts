@@ -28,6 +28,7 @@ export const CampaignSummarySchema = z.object({
   redirectUrl: z.string(),
   creatorWallet: z.string(),
   poolUsdc: z.string(),
+  deadline: z.string().nullable(),
   createdAt: z.string(),
   stats: CampaignStatsSchema,
 });
@@ -41,6 +42,8 @@ export const CreateCampaignDraftBody = z.object({
   redirectUrl: z.string().url(),
   creatorWallet: PubkeySchema,
   poolUsdc: z.coerce.number().nonnegative().max(10_000_000),
+  /** ISO 8601 timestamp when the campaign should close. */
+  deadline: z.string().datetime(),
 });
 
 export const FinalizeCampaignBody = z.object({
@@ -77,6 +80,7 @@ export function mapCampaign(
     redirectUrl: c.redirectUrl,
     creatorWallet: c.creatorWallet,
     poolUsdc: c.poolUsdc.toString(),
+    deadline: c.deadline ? c.deadline.toISOString() : null,
     createdAt: c.createdAt.toISOString(),
     stats: {
       nodeCount: c._count.nodes,

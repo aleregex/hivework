@@ -1,10 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { b1Post, B1ApiError } from "../api-client.js";
+import { b1Get, b1Post, B1ApiError } from "../api-client.js";
 import { config, isProgramReady } from "../config.js";
 import { logToolCall, logToolError } from "../logging.js";
 import {
   buildUnsignedCreateLeafTx,
+  canonicalMetadataHash,
   TxBuilderError,
 } from "../solana/tx-builder.js";
 
@@ -37,12 +38,17 @@ type CreateLeafInput = {
   stake?: z.infer<typeof stakeShape>;
 };
 
-interface LeafDraftResponse {
-  leaf_id: string;
-  ref_code: string;
-  short_url: string;
-  metadata_hash?: string;
-}
+// The api's POST /leaves/draft returns { leaf, reservation } with camelCase
+// fields per api/src/schemas/leaf.ts.
+type ApiLeafDraftResponse = {
+  leaf: { id: string; refCode: string; onchainPda: string | null };
+  reservation: { refCode: string; expiresAt: string };
+};
+
+type ApiCampaignDetail = {
+  campaign: { id: string; onchainPda: string | null };
+  nodes: Array<{ id: string; onchainPda: string | null }>;
+};
 
 type CreateLeafResult = {
   leaf_id: string;
@@ -65,29 +71,28 @@ function resolveStakeSol(stake?: {
   return stake.amount_sol;
 }
 
-function toLamports(sol: number): bigint {
-  return BigInt(Math.round(sol * 1_000_000_000));
-}
-
 async function createLeafInternal(
   input: CreateLeafInput,
 ): Promise<CreateLeafResult> {
   const stakeSol = resolveStakeSol(input.stake);
 
-  const draft = await b1Post<LeafDraftResponse>("/leaves/draft", {
-    campaign_id: input.campaign_id,
+  // POST /leaves/draft expects camelCase per api/src/schemas/leaf.ts.
+  const draftResp = await b1Post<ApiLeafDraftResponse>("/leaves/draft", {
+    campaignId: input.campaign_id,
     path: input.path,
-    creator_wallet: input.creator_wallet,
-    content_url: input.content_url ?? null,
+    creatorWallet: input.creator_wallet,
+    contentUrl: input.content_url ?? null,
     platform: input.platform,
-    stake_sol: stakeSol,
+    stakeSol,
   });
+  const refCode = draftResp.reservation.refCode;
+  const shortUrl = `https://${process.env.SHORTLINK_DOMAIN ?? "hivework.link"}/${refCode}`;
 
   if (!isProgramReady()) {
     return {
-      leaf_id: draft.leaf_id,
-      ref_code: draft.ref_code,
-      short_url: draft.short_url,
+      leaf_id: draftResp.leaf.id,
+      ref_code: refCode,
+      short_url: shortUrl,
       status: "pending_program",
       unsigned_tx_b64: null,
       fee_payer: null,
@@ -97,18 +102,38 @@ async function createLeafInternal(
   }
 
   try {
+    const detail = await b1Get<ApiCampaignDetail>(
+      `/campaigns/${encodeURIComponent(input.campaign_id)}`,
+    );
+    if (!detail.campaign.onchainPda) {
+      throw new TxBuilderError("campaign is not finalized on-chain yet");
+    }
+    const pathPdas: string[] = [];
+    for (const id of input.path) {
+      const node = detail.nodes.find((n) => n.id === id);
+      if (!node?.onchainPda) {
+        throw new TxBuilderError(`path node ${id} not finalized on-chain yet`);
+      }
+      pathPdas.push(node.onchainPda);
+    }
+
+    const { bytesMetadata } = canonicalMetadataHash({
+      contentUrl: input.content_url ?? null,
+      platform: input.platform,
+    });
+
     const tx = await buildUnsignedCreateLeafTx({
-      campaign_id: input.campaign_id,
-      path: [input.path[0]!, input.path[1]!, input.path[2]!] as const,
-      ref_code: draft.ref_code,
-      metadata_hash: draft.metadata_hash ?? "",
-      stake_lamports: toLamports(stakeSol),
-      creator_wallet: input.creator_wallet,
+      campaignOnchainPda: detail.campaign.onchainPda,
+      pathOnchainPdas: [pathPdas[0]!, pathPdas[1]!, pathPdas[2]!] as const,
+      refCode,
+      bytesMetadata,
+      metadataCuid: draftResp.leaf.id,
+      creatorWallet: input.creator_wallet,
     });
     return {
-      leaf_id: draft.leaf_id,
-      ref_code: draft.ref_code,
-      short_url: draft.short_url,
+      leaf_id: draftResp.leaf.id,
+      ref_code: refCode,
+      short_url: shortUrl,
       status: "draft_only",
       unsigned_tx_b64: tx.unsigned_tx_b64,
       fee_payer: tx.fee_payer,
@@ -118,9 +143,9 @@ async function createLeafInternal(
   } catch (err) {
     if (err instanceof TxBuilderError) {
       return {
-        leaf_id: draft.leaf_id,
-        ref_code: draft.ref_code,
-        short_url: draft.short_url,
+        leaf_id: draftResp.leaf.id,
+        ref_code: refCode,
+        short_url: shortUrl,
         status: "pending_program",
         unsigned_tx_b64: null,
         fee_payer: null,
@@ -135,7 +160,7 @@ async function createLeafInternal(
 export function registerCreateLeaf(server: McpServer): void {
   server.tool(
     "create_leaf",
-    "Register a Hivework leaf (a published piece of content with a unique referral link). path is the 3 node ids [L1_hook, L2_audio, L3_visual] this leaf combines. Returns the ref_code and short_url plus an unsigned tx if the program is configured. Stake defaults to 0.1 SOL.",
+    "Register a Hivework leaf (a published piece of content with a unique referral link). path is the 3 node ids [L1_hook, L2_audio, L3_visual] this leaf combines. Returns the ref_code, short_url and an unsigned tx if the program is configured. Stake defaults to 0.1 SOL.",
     inputShape,
     async (args) => {
       logToolCall("create_leaf", args);
@@ -148,7 +173,7 @@ export function registerCreateLeaf(server: McpServer): void {
         logToolError("create_leaf", err);
         const message =
           err instanceof B1ApiError
-            ? `B1 API error (${err.status}): ${err.message}`
+            ? `API error (${err.status}): ${err.message}`
             : `create_leaf failed: ${(err as Error).message}`;
         return {
           content: [{ type: "text", text: message }],

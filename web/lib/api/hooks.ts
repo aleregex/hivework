@@ -6,6 +6,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 import type {
+  ApiCampaignConversionsResponse,
   ApiCampaignDetail,
   ApiCampaignSummary,
   ApiLeaf,
@@ -18,6 +19,8 @@ import type {
 const KEYS = {
   campaigns: ["campaigns", "active"] as const,
   campaign: (id: string) => ["campaigns", id] as const,
+  campaignConversions: (id: string) =>
+    ["campaigns", id, "conversions"] as const,
   leafByRef: (refCode: string) => ["leaves", "by-ref", refCode] as const,
   portfolio: (address: string) => ["wallets", address, "portfolio"] as const,
 };
@@ -38,6 +41,21 @@ export function useCampaign(id: string | undefined) {
     queryKey: id ? KEYS.campaign(id) : ["campaigns", "_disabled"],
     queryFn: () => apiFetch<ApiCampaignDetail>(`/campaigns/${id}`),
     enabled: Boolean(id),
+    staleTime: 3_000,
+  });
+}
+
+export function useCampaignConversions(
+  id: string | undefined,
+  opts: { enabled?: boolean } = {},
+) {
+  return useQuery({
+    queryKey: id
+      ? KEYS.campaignConversions(id)
+      : ["campaigns", "_disabled", "conversions"],
+    queryFn: () =>
+      apiFetch<ApiCampaignConversionsResponse>(`/campaigns/${id}/conversions`),
+    enabled: Boolean(id) && (opts.enabled ?? true),
     staleTime: 3_000,
   });
 }
@@ -95,6 +113,8 @@ export async function postCampaignDraft(input: {
   redirectUrl: string;
   creatorWallet: string;
   poolUsdc: number;
+  /** ISO 8601 timestamp when the campaign closes. */
+  deadline: string;
   brandLogoUrl?: string | null;
   productImageUrl?: string | null;
 }) {

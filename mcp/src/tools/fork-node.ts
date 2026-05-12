@@ -30,17 +30,18 @@ const inputShape = {
   stake: stakeShape,
 };
 
-interface OriginalNode {
-  node_id: string;
-  campaign_id: string;
-  parent_id: string | null;
+// Shape returned by GET /nodes/:id — camelCase per api/src/schemas/node.ts.
+type ApiNode = {
+  id: string;
+  campaignId: string;
+  parentNodeId: string | null;
   level: "L1" | "L2" | "L3";
   title: string;
   description: string;
-  examples?: Array<Record<string, unknown>>;
-  tags?: string[];
-  media_urls?: string[];
-}
+  examples: unknown;
+  tags: string[];
+  mediaUrls: string[];
+};
 
 export function registerForkNode(server: McpServer): void {
   server.tool(
@@ -50,23 +51,27 @@ export function registerForkNode(server: McpServer): void {
     async (args) => {
       logToolCall("fork_node", args);
       try {
-        const original = await b1Get<OriginalNode>(
+        const original = await b1Get<ApiNode>(
           `/nodes/${encodeURIComponent(args.node_id)}`,
         );
+
+        const examples = Array.isArray(original.examples)
+          ? (original.examples as Array<Record<string, unknown>>)
+          : [];
 
         const merged: CreateNodeMetadata = {
           creator_wallet: args.modifications.creator_wallet,
           title: args.modifications.title ?? original.title,
           description: args.modifications.description ?? original.description,
-          examples: args.modifications.examples ?? original.examples ?? [],
+          examples: args.modifications.examples ?? examples,
           tags: args.modifications.tags ?? original.tags ?? [],
-          media_urls: args.modifications.media_urls ?? original.media_urls ?? [],
+          media_urls: args.modifications.media_urls ?? original.mediaUrls ?? [],
           fork_of: args.node_id,
         };
 
         const input: CreateNodeInput = {
-          campaign_id: original.campaign_id,
-          parent_id: original.parent_id,
+          campaign_id: original.campaignId,
+          parent_id: original.parentNodeId,
           level: original.level,
           metadata: merged,
           stake: args.stake,
@@ -85,7 +90,7 @@ export function registerForkNode(server: McpServer): void {
         logToolError("fork_node", err);
         const message =
           err instanceof B1ApiError
-            ? `B1 API error (${err.status}): ${err.message}`
+            ? `API error (${err.status}): ${err.message}`
             : `fork_node failed: ${(err as Error).message}`;
         return {
           content: [{ type: "text", text: message }],

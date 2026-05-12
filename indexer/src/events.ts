@@ -1,15 +1,18 @@
-// Stub event types until Grupo A ships the IDL and `npm run codama:generate`
-// produces the real decoder. Keep field names matching the docs/grupo_b.md
-// contract so handlers don't need to change shape on swap-in.
+// Decoded event types emitted by Contract/programs/hivework. Field shape
+// follows what parser.ts produces: pubkeys are base58, integers are bigint
+// (because borsh emits u64/i64 as 64-bit ints), strings are decoded utf-8.
 
-export type Pubkey = string  // base58
+export type Pubkey = string // base58
 
 export type CampaignCreated = {
   name: 'CampaignCreated'
-  campaignPda: Pubkey       // → CampaignMetadata.onchainPda
-  metadataCuid: string      // ← REQUIRED from Grupo A: thread the api/ cuid through
+  campaignPda: Pubkey
+  metadataCuid: string
   brandPubkey: Pubkey
-  poolLamports: bigint      // SOL portion only; USDC pool tracked via separate event/account
+  // CampaignCreated emits `total_usdc` (u64 base units) rather than SOL — the
+  // field is kept named `poolLamports` for backward compat with prior handler
+  // code, but interpret it as USDC base units when wiring downstream.
+  poolLamports: bigint
 }
 
 export type NodeCreated = {
@@ -28,7 +31,7 @@ export type LeafCreated = {
   leafPda: Pubkey
   metadataCuid: string
   campaignPda: Pubkey
-  path: [Pubkey, Pubkey, Pubkey]   // L1, L2, L3 node PDAs
+  path: [Pubkey, Pubkey, Pubkey]
   creator: Pubkey
   refCode: string
   stakeLamports: bigint
@@ -37,15 +40,33 @@ export type LeafCreated = {
 export type ConversionRegistered = {
   name: 'ConversionRegistered'
   conversionPda: Pubkey
+  campaignPda: Pubkey
   leafPda: Pubkey
-  valueLamports: bigint     // for SOL-denominated demos; USDC via decimal in api
+  /** USDC base units (6 decimals) as encoded on-chain. Field kept named
+   *  `valueLamports` for back-compat; downstream code should treat it as USDC. */
+  valueLamports: bigint
+  /** UTF-8 decoded conversion_id seed. Matches the prefix of the source
+   *  pending_conversion.id so the indexer can match the row. */
+  conversionId: string
+  /** Reserved for future use — currently unused. */
   oracleSignature: string
 }
 
 export type CampaignClosed = {
   name: 'CampaignClosed'
   campaignPda: Pubkey
+  /** Reused for `conversions_processed` count. */
   totalDistributedLamports: bigint
+}
+
+export type PayoutClaimed = {
+  name: 'PayoutClaimed'
+  campaignPda: Pubkey
+  source: Pubkey
+  creator: Pubkey
+  kind: 'node' | 'leaf'
+  amountUsdc: bigint
+  stakeReleasedLamports: bigint
 }
 
 export type AnchorEvent =
@@ -54,3 +75,4 @@ export type AnchorEvent =
   | LeafCreated
   | ConversionRegistered
   | CampaignClosed
+  | PayoutClaimed

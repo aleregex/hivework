@@ -51,10 +51,12 @@ model CampaignMetadata {
   redirectUrl         String         @map("redirect_url")
   creatorWallet       String         @map("creator_wallet")
   poolUsdc            Decimal        @default(0) @map("pool_usdc") @db.Decimal(18, 6)
+  deadline            DateTime?
   createdAt           DateTime       @default(now()) @map("created_at")
 
   nodes               NodeMetadata[]
   leaves              LeafMetadata[]
+  payoutClaims        PayoutClaim[]
 
   @@index([status])
   @@map("campaigns_metadata")
@@ -147,4 +149,29 @@ model RefCodeReservation {
 
   @@index([expiresAt])
   @@map("ref_code_reservations")
+}
+
+enum PayoutKind {
+  node
+  leaf
+}
+
+model PayoutClaim {
+  id                     String     @id @default(cuid())
+  campaignId             String     @map("campaign_id")
+  campaignOnchainPda     String     @map("campaign_onchain_pda")
+  sourceOnchainPda       String     @map("source_onchain_pda")
+  kind                   PayoutKind
+  creatorWallet          String     @map("creator_wallet")
+  amountUsdc             Decimal    @map("amount_usdc") @db.Decimal(18, 6)
+  stakeReleasedLamports  BigInt     @default(0) @map("stake_released_lamports")
+  txSignature            String     @unique @map("tx_signature")
+  slot                   BigInt     @default(0)
+  claimedAt              DateTime   @default(now()) @map("claimed_at")
+
+  campaign               CampaignMetadata @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([creatorWallet, claimedAt])
+  @@index([campaignId])
+  @@map("payout_claims")
 }

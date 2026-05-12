@@ -22,6 +22,8 @@ export async function dispatch(
         return await onConversionRegistered(event, signature, slot)
       case 'CampaignClosed':
         return await onCampaignClosed(event, signature, slot)
+      case 'PayoutClaimed':
+        return await onPayoutClaimed(event, signature, slot)
     }
   } catch (e) {
     log.indexer.error('handler failed', {
@@ -158,10 +160,64 @@ async function onCampaignClosed(
   log.indexer.info('campaign closed', { pda: ev.campaignPda })
 }
 
+async function onPayoutClaimed(
+  ev: Extract<AnchorEvent, { name: 'PayoutClaimed' }>,
+  sig: string,
+  slot: bigint,
+) {
+  // Resolve the off-chain campaign cuid for the FK so the wallets endpoint
+  // can join through the relation.
+  const campaign = await prisma.campaignMetadata.findUnique({
+    where: { onchainPda: ev.campaignPda },
+    select: { id: true },
+  })
+  if (!campaign) {
+    log.indexer.warn('PayoutClaimed: campaign pda not indexed yet', {
+      pda: ev.campaignPda, sig, slot: slot.toString(),
+    })
+    return
+  }
+
+  // Idempotent: keyed on tx_signature so re-processing the same log is a
+  // no-op. createMany skips dups on the unique constraint.
+  const result = await prisma.payoutClaim.createMany({
+    data: [{
+      campaignId: campaign.id,
+      campaignOnchainPda: ev.campaignPda,
+      sourceOnchainPda: ev.source,
+      kind: ev.kind,
+      creatorWallet: ev.creator,
+      amountUsdc: usdcBaseToDecimal(ev.amountUsdc),
+      stakeReleasedLamports: ev.stakeReleasedLamports,
+      txSignature: sig,
+      slot,
+    }],
+    skipDuplicates: true,
+  }).catch((e) => {
+    log.indexer.error('PayoutClaimed insert failed', { err: String(e), sig })
+    return { count: 0 }
+  })
+  if (result.count > 0) {
+    log.indexer.info('payout indexed', {
+      campaign: ev.campaignPda,
+      creator: ev.creator,
+      amount: ev.amountUsdc.toString(),
+    })
+  }
+}
+
 function lamportsToSol(l: bigint): string {
   // Decimal column in schema is (18, 9). Convert lamports → SOL string with 9 dp.
   const LAMPORTS_PER_SOL = 1_000_000_000n
   const whole = l / LAMPORTS_PER_SOL
   const frac = l % LAMPORTS_PER_SOL
   return `${whole}.${frac.toString().padStart(9, '0')}`
+}
+
+function usdcBaseToDecimal(base: bigint): string {
+  // USDC has 6 decimals. The schema column is Decimal(18, 6).
+  const USDC_BASE = 1_000_000n
+  const whole = base / USDC_BASE
+  const frac = base % USDC_BASE
+  return `${whole}.${frac.toString().padStart(6, '0')}`
 }

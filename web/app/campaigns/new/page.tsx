@@ -114,6 +114,10 @@ export default function NewCampaignPage() {
 
     setSubmitting(true);
     try {
+      const deadlineUnixSec =
+        Math.floor(Date.now() / 1000) + values.deadlineDays * 86_400;
+      const deadlineIso = new Date(deadlineUnixSec * 1000).toISOString();
+
       // 1) Persist metadata off-chain so the api row exists before the tx
       //    confirms. Returns a CUID we use as the draftId.
       const draft = await postCampaignDraft({
@@ -125,18 +129,18 @@ export default function NewCampaignPage() {
         redirectUrl: values.storefrontUrl,
         creatorWallet: publicKey.toBase58(),
         poolUsdc: values.poolUsdc,
+        deadline: deadlineIso,
       });
 
       // 2) Sign + send create_campaign on-chain. Anchor handles preflight +
       //    confirmation; rpc() resolves once the tx is `confirmed`.
-      const deadlineUnixSec =
-        Math.floor(Date.now() / 1000) + values.deadlineDays * 86_400;
       const { campaignPda, signature } = await createCampaignOnchain(program, {
         authority: publicKey,
         usdcMint: new PublicKey(usdcMintStr),
         oracleAuthority: new PublicKey(oracleStr),
         initialUsdc: values.poolUsdc,
         deadlineUnixSec,
+        metadataCuid: draft.id,
       });
       toast.success("Campaign created on devnet", {
         description: `tx ${signature.slice(0, 8)}…${signature.slice(-4)}`,

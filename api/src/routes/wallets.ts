@@ -23,6 +23,7 @@ const PendingBreakdownEntrySchema = z.object({
 
 const PendingByCampaignSchema = z.object({
   campaignId: z.string(),
+  campaignOnchainPda: z.string().nullable(),
   campaignName: z.string(),
   brandName: z.string(),
   contributingNodes: z.number().int(),
@@ -87,6 +88,7 @@ const walletsRoutes: FastifyPluginAsync = async (app) => {
                 campaign: {
                   select: {
                     id: true,
+                    onchainPda: true,
                     brandName: true,
                     productName: true,
                     status: true,
@@ -128,6 +130,7 @@ const walletsRoutes: FastifyPluginAsync = async (app) => {
       type ContribKind = "node" | "leaf";
       type PerCampaign = {
         campaignId: string;
+        campaignOnchainPda: string | null;
         campaignName: string;
         brandName: string;
         contributingIds: Set<string>;
@@ -206,6 +209,7 @@ const walletsRoutes: FastifyPluginAsync = async (app) => {
         if (!entry) {
           entry = {
             campaignId: cId,
+            campaignOnchainPda: leaf.campaign.onchainPda,
             campaignName: leaf.campaign.productName,
             brandName: leaf.campaign.brandName,
             contributingIds: new Set<string>(),
@@ -228,6 +232,7 @@ const walletsRoutes: FastifyPluginAsync = async (app) => {
 
       const pendingByCampaign = Array.from(perCampaign.values()).map((c) => ({
         campaignId: c.campaignId,
+        campaignOnchainPda: c.campaignOnchainPda,
         campaignName: c.campaignName,
         brandName: c.brandName,
         contributingNodes: c.contributingIds.size,
@@ -243,10 +248,27 @@ const walletsRoutes: FastifyPluginAsync = async (app) => {
         .reduce((sum, c) => sum + c.pendingUsdc, 0)
         .toFixed(6);
 
-      // claimHistory + lifetimeClaimedUsdc require a PayoutClaim model fed by
-      // the indexer. That depends on Group A emitting a PayoutClaimed event
-      // from claim_payout/claim_leaf_payout — not yet in the contract events
-      // list. Wire is stable; values stay zeroed until then.
+      // PayoutClaim rows are inserted by the indexer when it observes
+      // PayoutClaimed events on-chain. They are the source of truth for
+      // claim history; the api never inserts here directly.
+      const claimRows = await app.prisma.payoutClaim.findMany({
+        where: { creatorWallet: address },
+        orderBy: { claimedAt: "desc" },
+        include: {
+          campaign: { select: { id: true, productName: true } },
+        },
+      });
+      const claimHistory = claimRows.map((c) => ({
+        campaignId: c.campaign.id,
+        campaignName: c.campaign.productName,
+        amountUsdc: c.amountUsdc.toString(),
+        claimedAt: c.claimedAt.toISOString(),
+        txSignature: c.txSignature,
+      }));
+      const lifetimeClaimedUsdc = claimRows
+        .reduce((sum, c) => sum + Number(c.amountUsdc), 0)
+        .toFixed(6);
+
       return {
         wallet: address,
         nodes: nodes.map(mapNode),
@@ -254,8 +276,8 @@ const walletsRoutes: FastifyPluginAsync = async (app) => {
         stakedSol: stakedSol.toFixed(9),
         pendingPayoutsUsdc: pendingTotal,
         pendingByCampaign,
-        claimHistory: [],
-        lifetimeClaimedUsdc: "0",
+        claimHistory,
+        lifetimeClaimedUsdc,
       };
     },
   );

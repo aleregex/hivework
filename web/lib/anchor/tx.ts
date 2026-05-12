@@ -16,6 +16,7 @@ import {
   encodeRefCode,
   sha256Bytes,
 } from "./seeds";
+import { HIVEWORK_PROGRAM_ID } from "./idl";
 
 // SPL standard program ids — hardcoded to avoid pulling @solana/spl-token.
 const TOKEN_PROGRAM_ID = new PublicKey(
@@ -25,12 +26,30 @@ const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
   "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
 );
 
+const PROGRAM_ID = new PublicKey(HIVEWORK_PROGRAM_ID);
+const CONVERSION_SEED = new TextEncoder().encode("conversion");
+
 /** Standard SPL associated-token-account derivation. */
 function getAta(owner: PublicKey, mint: PublicKey): PublicKey {
   return PublicKey.findProgramAddressSync(
     [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
     ASSOCIATED_TOKEN_PROGRAM_ID
   )[0];
+}
+
+/** Derive the Conversion PDA (mirror: seeds = [b"conversion", campaign, leaf, id]). */
+export function deriveConversionPda(
+  campaign: PublicKey,
+  leaf: PublicKey,
+  conversionId: Uint8Array
+): [PublicKey, number] {
+  if (conversionId.length !== 16) {
+    throw new Error("conversion_id must be 16 bytes");
+  }
+  return PublicKey.findProgramAddressSync(
+    [CONVERSION_SEED, campaign.toBuffer(), leaf.toBuffer(), conversionId],
+    PROGRAM_ID
+  );
 }
 
 // ---------- create_campaign ----------
@@ -43,6 +62,8 @@ export type CreateCampaignArgs = {
   initialUsdc: number;
   /** Unix timestamp (seconds). Must be in the future. */
   deadlineUnixSec: number;
+  /** Off-chain cuid from /campaigns/draft. Emitted via CampaignCreated. */
+  metadataCuid: string;
   /** Formula weights — must sum to 100. Defaults match constants.rs. */
   alpha?: number;
   beta?: number;
@@ -83,7 +104,8 @@ export async function createCampaignOnchain(
       beta,
       gamma,
       campaignId,
-      initialUsdcBase
+      initialUsdcBase,
+      args.metadataCuid
     )
     .accountsStrict({
       campaign: campaignPda,
@@ -115,6 +137,8 @@ export type CreateNodeArgs = {
   parentNode: PublicKey | null;
   /** Canonical metadata payload. JSON-stringified deterministically client-side. */
   metadata: Record<string, unknown>;
+  /** Off-chain cuid from /nodes/draft. Emitted via NodeCreated. */
+  metadataCuid: string;
 };
 
 export type CreateNodeResult = {
@@ -139,7 +163,12 @@ export async function createNodeOnchain(
   // L2/L3, we pass the real parent PDA. We cast to satisfy Anchor's strict
   // .accounts type — at runtime null is the correct value for optional accs.
   const signature = await program.methods
-    .createNode(args.level, Array.from(metadataHash), bytesMetadata)
+    .createNode(
+      args.level,
+      Array.from(metadataHash),
+      bytesMetadata,
+      args.metadataCuid
+    )
     .accounts({
       node: nodePda,
       campaign: args.campaign,
@@ -164,6 +193,8 @@ export type CreateLeafArgs = {
   /** 8-char alphanumeric, ASCII. The api's leaf draft endpoint reserves it. */
   refCode: string;
   metadata: Record<string, unknown>;
+  /** Off-chain cuid from /leaves/draft. Emitted via LeafCreated. */
+  metadataCuid: string;
 };
 
 export type CreateLeafResult = {
@@ -183,7 +214,11 @@ export async function createLeafOnchain(
   const [leafPda] = deriveLeafPda(args.campaign, args.refCode);
 
   const signature = await program.methods
-    .createLeaf(Array.from(refCodeBytes), bytesMetadata)
+    .createLeaf(
+      Array.from(refCodeBytes),
+      bytesMetadata,
+      args.metadataCuid
+    )
     .accountsStrict({
       leaf: leafPda,
       campaign: args.campaign,
@@ -196,4 +231,246 @@ export async function createLeafOnchain(
     .rpc();
 
   return { leafPda, bytesMetadata, signature };
+}
+
+// ---------- register_conversion ----------
+// Caller must sign with the oracle keypair (campaign.oracle_authority).
+// Returned by the wallet adapter when an oracle-controlled wallet is connected.
+
+export type RegisterConversionArgs = {
+  campaign: PublicKey;
+  leaf: PublicKey;
+  nodeL1: PublicKey;
+  nodeL2: PublicKey;
+  nodeL3: PublicKey;
+  oracle: PublicKey;
+  /** 16-byte conversion id. Uniqueness is enforced by the PDA. */
+  conversionId: Uint8Array;
+  /** USDC value in base units (6 decimals). */
+  valueUsdcBase: BN;
+};
+
+export type RegisterConversionResult = {
+  conversionPda: PublicKey;
+  signature: string;
+};
+
+export async function registerConversionOnchain(
+  program: Program,
+  args: RegisterConversionArgs
+): Promise<RegisterConversionResult> {
+  if (args.conversionId.length !== 16) {
+    throw new Error("conversion_id must be exactly 16 bytes");
+  }
+  const [conversionPda] = deriveConversionPda(
+    args.campaign,
+    args.leaf,
+    args.conversionId
+  );
+
+  const signature = await program.methods
+    .registerConversion(Array.from(args.conversionId), args.valueUsdcBase)
+    .accountsStrict({
+      conversion: conversionPda,
+      campaign: args.campaign,
+      leaf: args.leaf,
+      nodeL1: args.nodeL1,
+      nodeL2: args.nodeL2,
+      nodeL3: args.nodeL3,
+      oracle: args.oracle,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  return { conversionPda, signature };
+}
+
+// ---------- close_and_distribute ----------
+// Processes ONE conversion per call. Caller iterates over every pending
+// conversion to fully distribute the campaign.
+
+export type CloseAndDistributeArgs = {
+  campaign: PublicKey;
+  conversion: PublicKey;
+  leaf: PublicKey;
+  nodeL1: PublicKey;
+  nodeL2: PublicKey;
+  nodeL3: PublicKey;
+  authority: PublicKey;
+};
+
+export async function closeAndDistributeOnchain(
+  program: Program,
+  args: CloseAndDistributeArgs
+): Promise<{ signature: string }> {
+  const signature = await program.methods
+    .closeAndDistribute()
+    .accountsStrict({
+      campaign: args.campaign,
+      conversion: args.conversion,
+      leaf: args.leaf,
+      nodeL1: args.nodeL1,
+      nodeL2: args.nodeL2,
+      nodeL3: args.nodeL3,
+      authority: args.authority,
+    })
+    .rpc();
+  return { signature };
+}
+
+// ---------- claim_payout (node creator) ----------
+
+export type ClaimPayoutArgs = {
+  node: PublicKey;
+  campaign: PublicKey;
+  usdcMint: PublicKey;
+  creator: PublicKey;
+};
+
+export async function claimPayoutOnchain(
+  program: Program,
+  args: ClaimPayoutArgs
+): Promise<{ signature: string }> {
+  const escrowUsdc = getAta(args.campaign, args.usdcMint);
+  const creatorUsdc = getAta(args.creator, args.usdcMint);
+
+  const signature = await program.methods
+    .claimPayout()
+    .accountsStrict({
+      node: args.node,
+      campaign: args.campaign,
+      escrowUsdc,
+      creatorUsdc,
+      creator: args.creator,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+    .rpc();
+  return { signature };
+}
+
+// ---------- claim_leaf_payout (leaf creator) ----------
+
+export type ClaimLeafPayoutArgs = {
+  leaf: PublicKey;
+  campaign: PublicKey;
+  usdcMint: PublicKey;
+  creator: PublicKey;
+};
+
+export async function claimLeafPayoutOnchain(
+  program: Program,
+  args: ClaimLeafPayoutArgs
+): Promise<{ signature: string }> {
+  const escrowUsdc = getAta(args.campaign, args.usdcMint);
+  const creatorUsdc = getAta(args.creator, args.usdcMint);
+
+  const signature = await program.methods
+    .claimLeafPayout()
+    .accountsStrict({
+      leaf: args.leaf,
+      campaign: args.campaign,
+      escrowUsdc,
+      creatorUsdc,
+      creator: args.creator,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+    .rpc();
+  return { signature };
+}
+
+// ---------- forfeit_node_stake / forfeit_leaf_stake ----------
+// Public-good action: any wallet can call after campaign close to sweep a
+// loser's stake into the campaign's forfeit pool.
+
+export type ForfeitNodeStakeArgs = {
+  node: PublicKey;
+  campaign: PublicKey;
+  caller: PublicKey;
+};
+
+export async function forfeitNodeStakeOnchain(
+  program: Program,
+  args: ForfeitNodeStakeArgs
+): Promise<{ signature: string }> {
+  const signature = await program.methods
+    .forfeitNodeStake()
+    .accountsStrict({
+      node: args.node,
+      campaign: args.campaign,
+      caller: args.caller,
+    })
+    .rpc();
+  return { signature };
+}
+
+export type ForfeitLeafStakeArgs = {
+  leaf: PublicKey;
+  campaign: PublicKey;
+  caller: PublicKey;
+};
+
+export async function forfeitLeafStakeOnchain(
+  program: Program,
+  args: ForfeitLeafStakeArgs
+): Promise<{ signature: string }> {
+  const signature = await program.methods
+    .forfeitLeafStake()
+    .accountsStrict({
+      leaf: args.leaf,
+      campaign: args.campaign,
+      caller: args.caller,
+    })
+    .rpc();
+  return { signature };
+}
+
+// ---------- withdraw_unused_usdc ----------
+
+export type WithdrawUnusedUsdcArgs = {
+  campaign: PublicKey;
+  usdcMint: PublicKey;
+  authority: PublicKey;
+};
+
+export async function withdrawUnusedUsdcOnchain(
+  program: Program,
+  args: WithdrawUnusedUsdcArgs
+): Promise<{ signature: string }> {
+  const escrowUsdc = getAta(args.campaign, args.usdcMint);
+  const authorityUsdc = getAta(args.authority, args.usdcMint);
+
+  const signature = await program.methods
+    .withdrawUnusedUsdc()
+    .accountsStrict({
+      campaign: args.campaign,
+      escrowUsdc,
+      authorityUsdc,
+      authority: args.authority,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+    .rpc();
+  return { signature };
+}
+
+// ---------- claim_redistribution ----------
+
+export type ClaimRedistributionArgs = {
+  leaf: PublicKey;
+  campaign: PublicKey;
+  creator: PublicKey;
+};
+
+export async function claimRedistributionOnchain(
+  program: Program,
+  args: ClaimRedistributionArgs
+): Promise<{ signature: string }> {
+  const signature = await program.methods
+    .claimRedistribution()
+    .accountsStrict({
+      leaf: args.leaf,
+      campaign: args.campaign,
+      creator: args.creator,
+    })
+    .rpc();
+  return { signature };
 }

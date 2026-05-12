@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Coins, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { PublicKey } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,9 +17,16 @@ import {
   adaptPortfolioLifetime,
   adaptPortfolioPending,
 } from "@/lib/api/adapters";
+import { useHiveworkProgram } from "@/lib/anchor/program";
+import {
+  claimLeafPayoutOnchain,
+  claimPayoutOnchain,
+} from "@/lib/anchor/tx";
 
 export default function ClaimPage() {
   const { publicKey } = useWallet();
+  const program = useHiveworkProgram();
+  const queryClient = useQueryClient();
   const [claiming, setClaiming] = useState<string | null>(null);
 
   const { data: portfolio } = usePortfolio(publicKey?.toBase58());
@@ -26,13 +35,88 @@ export default function ClaimPage() {
   const lifetime = portfolio ? adaptPortfolioLifetime(portfolio) : 0;
 
   async function claim(campaignId: string, amount: number) {
-    // TODO(group-c, task #6): replace with Anchor claimPayout tx.
+    if (!program || !publicKey || !portfolio) {
+      toast.error("Connect your wallet first");
+      return;
+    }
+    const row = portfolio.pendingByCampaign.find(
+      (r) => r.campaignId === campaignId
+    );
+    if (!row?.campaignOnchainPda) {
+      toast.error("Campaign not on-chain yet");
+      return;
+    }
+    const usdcMintStr = process.env.NEXT_PUBLIC_USDC_MINT;
+    if (!usdcMintStr) {
+      toast.error("Missing NEXT_PUBLIC_USDC_MINT");
+      return;
+    }
+    const usdcMint = new PublicKey(usdcMintStr);
+    const campaign = new PublicKey(row.campaignOnchainPda);
+
+    // Resolve every contribution (node/leaf) the wallet owns in this campaign
+    // and execute one Anchor tx per claimable PDA. The contract claims a single
+    // node/leaf at a time, so we iterate.
+    const ownedNodePdas = new Map<string, string>(); // contributionId → pda
+    const ownedLeafPdas = new Map<string, string>();
+    for (const n of portfolio.nodes) {
+      if (n.campaignId === campaignId && n.onchainPda) {
+        ownedNodePdas.set(n.id, n.onchainPda);
+      }
+    }
+    for (const l of portfolio.leaves) {
+      if (l.campaignId === campaignId && l.onchainPda) {
+        ownedLeafPdas.set(l.id, l.onchainPda);
+      }
+    }
+
+    const sigs: string[] = [];
     setClaiming(campaignId);
-    await new Promise((r) => setTimeout(r, 1200));
-    setClaiming(null);
-    toast.success(`Claimed $${amount} USDC`, {
-      description: "Funds are in your wallet.",
-    });
+    try {
+      for (const b of row.breakdown) {
+        if (Number(b.pendingUsdc) <= 0) continue;
+        if (b.kind === "node") {
+          const pda = ownedNodePdas.get(b.contributionId);
+          if (!pda) continue;
+          const { signature } = await claimPayoutOnchain(program, {
+            node: new PublicKey(pda),
+            campaign,
+            usdcMint,
+            creator: publicKey,
+          });
+          sigs.push(signature);
+        } else {
+          const pda = ownedLeafPdas.get(b.contributionId);
+          if (!pda) continue;
+          const { signature } = await claimLeafPayoutOnchain(program, {
+            leaf: new PublicKey(pda),
+            campaign,
+            usdcMint,
+            creator: publicKey,
+          });
+          sigs.push(signature);
+        }
+      }
+
+      if (sigs.length === 0) {
+        toast.message("Nothing to claim for this campaign");
+      } else {
+        toast.success(`Claimed $${amount.toFixed(2)} USDC`, {
+          description: `${sigs.length} tx confirmed · ${sigs[0].slice(0, 8)}…`,
+        });
+      }
+      await queryClient.invalidateQueries({
+        queryKey: ["wallets", publicKey.toBase58(), "portfolio"],
+      });
+    } catch (err) {
+      console.error("claim failed", err);
+      toast.error("Claim failed", {
+        description:
+          err instanceof Error ? err.message : "Unknown error — see console.",
+      });
+    } finally {
+      setClaiming(null);
+    }
   }
 
   return (
