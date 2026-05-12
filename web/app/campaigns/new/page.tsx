@@ -31,10 +31,12 @@ const formSchema = z.object({
   brand: z.string().min(2, "Brand name is required"),
   product: z.string().min(4, "Product description is required"),
   storefrontUrl: z.string().url("Must be a valid URL"),
-  poolUsdc: z.coerce.number().min(1, "Minimum pool is 1 USDC"),
+  // USDC has 6 decimals — 0.01 USDC = 10,000 base units. Allowing any
+  // positive amount keeps the form aligned with the on-chain require!(initial_usdc > 0).
+  poolUsdc: z.coerce.number().min(0.01, "Minimum pool is $0.01 USDC"),
   conversionValueUsdc: z.coerce
     .number()
-    .min(0.1, "Minimum 0.1 USDC per conversion"),
+    .min(0.01, "Minimum $0.01 USDC per conversion"),
   deadlineDays: z.coerce.number().min(1).max(60),
   conversionCriteria: z.enum([
     "purchase",
@@ -74,8 +76,8 @@ export default function NewCampaignPage() {
       brand: "",
       product: "",
       storefrontUrl: "",
-      poolUsdc: 500,
-      conversionValueUsdc: 2.5,
+      poolUsdc: 1,
+      conversionValueUsdc: 0.1,
       deadlineDays: 14,
       conversionCriteria: "purchase",
     },
@@ -312,12 +314,13 @@ export default function NewCampaignPage() {
                     <Input
                       id="poolUsdc"
                       type="number"
-                      step="50"
+                      step="0.01"
+                      min="0.01"
                       aria-invalid={!!errors.poolUsdc}
                       {...register("poolUsdc")}
                     />
                     <p className="text-xs text-muted">
-                      Minimum $50. This goes into on-chain escrow at signing
+                      Minimum $0.01. This goes into on-chain escrow at signing
                       time.
                     </p>
                     <FieldError message={errors.poolUsdc?.message} />
@@ -364,7 +367,8 @@ export default function NewCampaignPage() {
                     <Input
                       id="conversionValueUsdc"
                       type="number"
-                      step="0.5"
+                      step="0.01"
+                      min="0.01"
                       aria-invalid={!!errors.conversionValueUsdc}
                       {...register("conversionValueUsdc")}
                     />
