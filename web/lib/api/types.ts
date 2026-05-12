@@ -64,6 +64,7 @@ export type ApiLeaf = {
   contentUrl: string | null;
   platform: ApiPlatform;
   stakeSol: string;
+  clicksCount: number;
   conversionsCount: number;
   status: ApiDraftStatus;
   createdAt: string;

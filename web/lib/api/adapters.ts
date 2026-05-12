@@ -223,22 +223,34 @@ export function adaptMyLeavesForCampaign(
   const nodeById = new Map<string, TreeNode>(
     campaignDetail.nodes.map((n) => [n.id, adaptNode(n)])
   );
+  // Clicks + conversions live on the campaign detail leaves (aggregated server-
+  // side). Earnings come from the portfolio's pending breakdown — the api ran
+  // the cascade formula and credited each contribution id its share.
+  const detailLeafById = new Map(
+    campaignDetail.leaves.map((dl) => [dl.id, dl])
+  );
+  const pendingByContribId = new Map<string, number>();
+  const campaignRow = portfolio.pendingByCampaign.find(
+    (row) => row.campaignId === campaignId
+  );
+  for (const b of campaignRow?.breakdown ?? []) {
+    pendingByContribId.set(b.contributionId, Number(b.pendingUsdc));
+  }
   const enriched: MyLeafEnriched[] = [];
   for (const l of myLeaves) {
     const hook = nodeById.get(l.path[0]);
     const audio = nodeById.get(l.path[1]);
     const visual = nodeById.get(l.path[2]);
     if (!hook || !audio || !visual) continue;
+    const detail = detailLeafById.get(l.id);
     const path: TreeNode[] = [hook, audio, visual, adaptLeaf(l)];
     enriched.push({
       refCode: l.refCode,
       publishedAt: l.createdAt,
       contentUrl: l.contentUrl,
-      // Per-leaf metrics aren't surfaced in /wallets/:address/portfolio yet.
-      // Stays 0/0/0 until Tier 2 (SSE) feeds them in real time.
-      clicks: 0,
-      conversions: 0,
-      earningsUsdc: 0,
+      clicks: detail?.clicksCount ?? 0,
+      conversions: detail?.conversionsCount ?? 0,
+      earningsUsdc: pendingByContribId.get(l.id) ?? 0,
       hookId: hook.id,
       audioId: audio.id,
       visualId: visual.id,

@@ -96,11 +96,17 @@ export function MyLeavesPanel({ campaignId }: Props) {
         <Stat label="clicks" value={totals.clicks} />
         <Stat label="conv" value={totals.conversions} accent="sting" />
         <Stat
-          label="usdc"
+          label="pending usdc"
           value={`$${totals.earningsUsdc.toFixed(2)}`}
           accent="honey"
         />
       </div>
+      {totals.earningsUsdc > 0 && (
+        <p className="text-[11px] text-muted">
+          <span className="text-honey">›</span> Pending USDC is your projected
+          share of the cascade — claimable once the brand closes the campaign.
+        </p>
+      )}
 
       {/* List */}
       <ul className="flex flex-col gap-3">

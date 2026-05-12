@@ -17,6 +17,7 @@ export const LeafSchema = z.object({
   contentUrl: z.string().nullable(),
   platform: PlatformSchema,
   stakeSol: z.string(),
+  clicksCount: z.number().int(),
   conversionsCount: z.number().int(),
   status: DraftStatusSchema,
   createdAt: z.string(),
@@ -48,7 +49,10 @@ export const FinalizeLeafBody = z.object({
 
 export function mapLeaf(
   l: LeafMetadata,
-  extras: { conversionsCount: number } = { conversionsCount: 0 },
+  extras: { clicksCount: number; conversionsCount: number } = {
+    clicksCount: 0,
+    conversionsCount: 0,
+  },
 ): z.infer<typeof LeafSchema> {
   return {
     id: l.id,
@@ -60,6 +64,7 @@ export function mapLeaf(
     contentUrl: l.contentUrl,
     platform: l.platform,
     stakeSol: l.stakeSol.toString(),
+    clicksCount: extras.clicksCount,
     conversionsCount: extras.conversionsCount,
     status: l.status,
     createdAt: l.createdAt.toISOString(),

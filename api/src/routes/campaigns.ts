@@ -96,29 +96,40 @@ const campaignsRoutes: FastifyPluginAsync = async (app) => {
         });
       }
 
-      const [nodes, leaves, counts, leafConversions] = await Promise.all([
-        app.prisma.nodeMetadata.findMany({
-          where: { campaignId: id },
-          orderBy: [{ level: "asc" }, { createdAt: "asc" }],
-        }),
-        app.prisma.leafMetadata.findMany({
-          where: { campaignId: id },
-          orderBy: { createdAt: "asc" },
-        }),
-        getCampaignActivityCounts(app.prisma, [id]),
-        app.prisma.pendingConversion.groupBy({
-          by: ["leafId"],
-          where: {
-            leaf: { campaignId: id },
-            status: { in: ["pushed_to_chain", "verified"] },
-          },
-          _count: { _all: true },
-        }) as unknown as Promise<
-          { leafId: string; _count: { _all: number } }[]
-        >,
-      ]);
+      const [nodes, leaves, counts, leafConversions, leafClicks] =
+        await Promise.all([
+          app.prisma.nodeMetadata.findMany({
+            where: { campaignId: id },
+            orderBy: [{ level: "asc" }, { createdAt: "asc" }],
+          }),
+          app.prisma.leafMetadata.findMany({
+            where: { campaignId: id },
+            orderBy: { createdAt: "asc" },
+          }),
+          getCampaignActivityCounts(app.prisma, [id]),
+          app.prisma.pendingConversion.groupBy({
+            by: ["leafId"],
+            where: {
+              leaf: { campaignId: id },
+              status: { in: ["pushed_to_chain", "verified"] },
+            },
+            _count: { _all: true },
+          }) as unknown as Promise<
+            { leafId: string; _count: { _all: number } }[]
+          >,
+          app.prisma.click.groupBy({
+            by: ["leafId"],
+            where: { leaf: { campaignId: id } },
+            _count: { _all: true },
+          }) as unknown as Promise<
+            { leafId: string; _count: { _all: number } }[]
+          >,
+        ]);
       const leafConversionsById = new Map(
         leafConversions.map((r) => [r.leafId, r._count._all]),
+      );
+      const leafClicksById = new Map(
+        leafClicks.map((r) => [r.leafId, r._count._all]),
       );
 
       return {
@@ -129,6 +140,7 @@ const campaignsRoutes: FastifyPluginAsync = async (app) => {
         nodes: nodes.map(mapNode),
         leaves: leaves.map((l) =>
           mapLeaf(l, {
+            clicksCount: leafClicksById.get(l.id) ?? 0,
             conversionsCount: leafConversionsById.get(l.id) ?? 0,
           }),
         ),
