@@ -16,7 +16,7 @@
 
 🌐 **Live app:** https://hivework-two.vercel.app
 📦 **Repo:** https://github.com/aleregex/hivework
-🎬 **Demo video (3 min):** _[link to be added before submission]_
+🎬 **Demo video (3 min):** https://www.youtube.com/watch?v=raJaWMxr49U
 🔗 **Program (devnet):** [`8wsaheyJ3e1e8zRUFX22apjvutNcaEagTyk21N75Ybz8`](https://explorer.solana.com/address/8wsaheyJ3e1e8zRUFX22apjvutNcaEagTyk21N75Ybz8?cluster=devnet)
 
 </div>
@@ -72,13 +72,13 @@ Hivework is the rare hackathon submission where **every track requirement maps t
 | Contract address in README | [§ On-chain addresses](#on-chain-addresses-devnet) | ✅ |
 | Public repo with setup | [§ Quick start](#quick-start) | ✅ pnpm + 6 services |
 | Live demo link | https://hivework-two.vercel.app | ✅ |
-| Demo video < 3 min | _[link added at submission]_ | 🎬 |
+| Demo video < 3 min | [YouTube link](https://www.youtube.com/watch?v=raJaWMxr49U) | ✅ |
 | **Bonus**: heavy Solana SDK use | `@coral-xyz/anchor`, `@solana/kit`, `@solana/wallet-adapter`, SPL Token, Anchor IDL codegen | ✅ |
 
 **What makes it genuinely novel** (not just "another Solana app"):
 
 1. **Genealogical multi-level attribution** is, to our knowledge, the first time a Solana program reconstructs a content lineage and pays proportionally to *every ancestor* of a sale — not just the last-click creator.
-2. **AI agents are economic peers, not tools.** Our MCP server lets any LLM-backed agent stake SOL, create nodes, and earn USDC royalties through the same on-chain rails as humans. This is the missing piece for the "agentic commerce" thesis (McKinsey/PwC project this market in the trillions by 2030).
+2. **AI agents are economic peers, not tools.** Our MCP server lets any LLM-backed agent stake SOL, create nodes, and earn USDC royalties through the same on-chain rails as humans. This is the missing piece for the agentic commerce thesis — McKinsey projects $3-5 trillion in global agentic commerce by 2030, and no existing affiliate rail accepts wallets as identity.
 3. **Anti-spam by economics, not moderation.** No KYC, no captcha, no humans-in-the-loop reviewing nodes — the staking + redistribution mechanism turns spammers into fundraisers for winning creators (see [§ Anti-spam](#anti-spam-staking-not-moderation)).
 4. **Composable from day one.** The on-chain tree is queryable by any Solana program. Future protocols can lend against expected payouts, list nodes as IP, build dashboards on top — none of which is possible on Web2 platforms like Partnero or Fuul.
 
@@ -385,7 +385,7 @@ Connect Claude Desktop with `~/Library/Application Support/Claude/claude_desktop
 { "mcpServers": { "hivework": { "url": "http://localhost:3402/mcp" } } }
 ```
 
-### 5. Reference agent (optional — for the demo)
+### 5. Reference AI agent (optional — for testing the agent layer)
 
 ```bash
 cd agent
@@ -415,13 +415,13 @@ Open `http://localhost:3400`, connect Phantom (devnet), and explore.
 - ✅ Public repo with setup instructions
 - ✅ Live demo at https://hivework-two.vercel.app
 - ✅ Heavy use of Solana SDKs: `@coral-xyz/anchor`, `@solana/kit`, `@solana/wallet-adapter`, SPL Token
-- 🎬 Demo video under 3 min — _[link]_
+- ✅ Demo video under 3 min — [YouTube link](https://www.youtube.com/watch?v=raJaWMxr49U)
 
 ### 🎁 Bonus — Best use of x402 on Solana ($500)
-We use x402-style pay-per-call wherever the AI agent purchases external services (image generation, hashtag analysis, audience scoring) during node creation — the agent's wallet pays per request, no API keys needed. _See `agent/README.md` for the integration._
+x402-style pay-per-call is a natural fit for our agent layer: when AI agents create nodes, they need to purchase external services (image generation, hashtag analysis, audience scoring) without managing API keys. The agent wallet pays per request through the same on-chain rails it uses for staking. Protocol-level alignment is clear; full x402 integration is the first item on our Phase 1 roadmap.
 
-### 🏛️ Colosseum side track ($250K + $2M seed)
-Hivework is post-hackathon-ready: clear monetization (5% protocol fee), defensible moat (compounding tree data + on-chain reputation + composability), and a roadmap below.
+### 🏛️ Colosseum Frontier Hackathon ($250K accelerator + $2M seed fund)
+This repository and the long-form economic argument in [`docs/proyecto.md`](./docs/proyecto.md) constitute our submission. Hivework ships post-hackathon-ready with clear monetization (5% protocol fee on every verified conversion), a defensible moat (compounding tree data + on-chain reputation + composability), and a four-phase roadmap below. The team is based in La Paz, Bolivia, and ready to relocate for the accelerator if accepted.
 
 _Optional integrations available depending on time:_
 - **ElevenLabs** — agent-generated voiceovers for L2 audio nodes
@@ -488,13 +488,15 @@ Full long-form spec in [`docs/proyecto.md`](./docs/proyecto.md).
 
 ## Team
 
-Built in 10 hours by 3 devs at Dev3pack 2026:
+Three Bolivian engineers who have built three startups together before Hivework. We have hit the influencer attribution wall as founders three times. We are our own first users.
 
-- **Group A** — On-chain (Anchor program + oracle service)
-- **Group B** — Backend, indexer, MCP server, AI agent
-- **Group C** — Frontend, tree visualization, pitch, submissions
+- **Alejandro Alvarez** — CEO & Cofounder. ICPC Bolivia bronze medalist. Teaches Rust regularly in La Paz. 7 years building production systems for US-based companies.
+- **Oscar Gauss** — Cofounder. Full stack and on-chain engineer.
+- **Rodrigo Ricaldez** — Cofounder. Full stack engineer based in Santa Cruz, Bolivia.
 
-See [`COORDINATION.md`](./COORDINATION.md) for the full team-wide config used during the hackathon.
+Hivework was conceived over several weeks of founder conversations with other startups bleeding budget on creators with no attribution, and was shipped end-to-end during **Dev3pack Bolivia 2026**, where we placed **second nationally** with this exact protocol.
+
+See [`COORDINATION.md`](./COORDINATION.md) for the team-wide config.
 
 ---
 
@@ -509,5 +511,7 @@ MIT. Use it, fork it, build on top of it. **The tree wants to grow.**
 **Marketing is teamwork. Pay only for the honey.** 🐝
 
 [Live demo](https://hivework-two.vercel.app) · [Program on Solscan](https://explorer.solana.com/address/8wsaheyJ3e1e8zRUFX22apjvutNcaEagTyk21N75Ybz8?cluster=devnet) · [Long-form spec](./docs/proyecto.md)
+
+Built in La Paz, Bolivia · 2026
 
 </div>
