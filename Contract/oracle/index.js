@@ -4,7 +4,9 @@ const path = require('path');
 const express = require('express');
 const { Connection, Keypair, PublicKey, SystemProgram } = require('@solana/web3.js');
 const { Program, AnchorProvider, Wallet, BN } = require('@coral-xyz/anchor');
-const bs58 = require('bs58').default;
+// bs58 v5 exports differently across CJS/ESM resolutions — use `.default` if
+// present, otherwise the module itself. Works on Node 18, 22, and 24.
+const bs58 = require('bs58').default || require('bs58');
 
 const app = express();
 app.use(express.json());
