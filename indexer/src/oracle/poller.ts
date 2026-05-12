@@ -6,6 +6,7 @@ import { prisma } from '../db.js'
 import { validate } from './validate.js'
 import { loadOracleSigner } from './signer.js'
 import { log } from '../log.js'
+import { sleep } from '../sleep.js'
 
 const PLACEHOLDER = 'PLACEHOLDER_UNTIL_GROUP_A_DEPLOYS'
 
@@ -75,14 +76,4 @@ async function tick(cfg: Config, _oraclePubkey: string | null) {
     })
     log.oracle.info('verified (awaiting on-chain push)', { id: row.id, leafPda: v.leafPda })
   }
-}
-
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((res) => {
-    const t = setTimeout(res, ms)
-    signal.addEventListener('abort', () => {
-      clearTimeout(t)
-      res()
-    }, { once: true })
-  })
 }

@@ -1,186 +1,265 @@
-# `api/` — Hivework Backend Service
+# Hivework API
 
-> **Group B / B1.** Fastify-based HTTP API and SSE event bus that owns all off-chain metadata, click tracking, and short-link routing for the Hivework protocol.
+> **The off-chain brain of a hybrid Solana protocol.** Owns every byte of campaign, tree, click, and conversion metadata — and streams them to humans and AI agents in real time.
 
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![Fastify](https://img.shields.io/badge/fastify-5.8-000000?logo=fastify)](https://fastify.dev)
 [![Prisma](https://img.shields.io/badge/prisma-7.8-2D3748?logo=prisma)](https://prisma.io)
 [![Postgres](https://img.shields.io/badge/postgres-Neon-4169E1?logo=postgresql&logoColor=white)](https://neon.tech)
+[![Zod](https://img.shields.io/badge/zod-4.4-3068B7)](https://zod.dev)
+[![Solana](https://img.shields.io/badge/cluster-devnet-9945FF?logo=solana&logoColor=white)](https://docs.solana.com/clusters)
 
 ---
 
-## What this service is
+## TL;DR
 
-The Hivework protocol is **hybrid by design**: anything monetary lives on Solana, everything else lives in this service. `api/` is the off-chain source of truth for:
+| | |
+|---|---|
+| **Base URL (local)** | `http://localhost:3401` |
+| **OpenAPI / Swagger UI** | `GET /docs` (interactive) · `GET /docs/json` (raw spec) |
+| **Health probe** | `GET /health` — pings the DB before returning `200` |
+| **Real-time** | `GET /events/stream` — Server-Sent Events for every state transition |
+| **Auth** | None for the hackathon demo. Wallet-signature JWT is on the wishlist. |
+| **Validation** | Zod 4 on **every** request body, query, and response — typed end-to-end |
+| **Money** | USDC + SOL returned as **strings** (Prisma `Decimal` doesn't fit a JS number) |
 
-- **Campaign metadata** — brand name, product description, hero image, redirect URL, weight overrides
-- **Node and leaf metadata** — title, description, tags, examples, media URLs, SHA-256 hash anchored on-chain
-- **Short-link service** — every leaf has an 8-character ASCII `ref_code` that maps to the brand's redirect URL with click tracking
-- **Pending conversions** — buyer clicks land here first; the indexer's oracle picks them up, runs anti-fraud checks, and pushes them on-chain
-- **Wallet portfolio aggregation** — given a wallet, returns staked SOL, pending payouts, claim history, per-contribution breakdown
-- **In-process event bus** — every state transition emits an event; the `/events/stream` SSE endpoint fans them out to the frontend in real time
-
-This service has **zero on-chain authority**. It does not hold private keys, it does not sign transactions. The chain is read by `indexer/` and written by `Contract/oracle/` and end-user wallets.
+Need to wire the frontend? See [FRONTEND.md](./FRONTEND.md).
 
 ---
 
-## How it integrates with the rest of the system
+## Why this service exists
+
+Hivework splits its protocol cleanly between Solana (anything monetary or irreversible) and this service (everything else). The split lets the chain stay cheap and auditable while the off-chain layer carries the rich metadata, indexes, and real-time feeds that a marketing protocol actually needs.
+
+This service is the **only** writer of off-chain state. It is also the **only** reader the frontend needs — no direct Postgres, no scattered microservices, no caching layer to invalidate.
+
+It owns:
+
+- **Campaign, node, and leaf metadata** — titles, descriptions, examples, media URLs, brand/product info, the SHA-256 hash that anchors each record to its on-chain PDA.
+- **The short-link service** — every published leaf gets an 8-char ASCII `ref_code`. Buyers land on `/l/<refCode>`, a click is recorded, and they're 302'd to the demo storefront.
+- **The pending-conversion pipeline** — `POST /demo/convert` writes a row, forwards to the oracle webhook, and reports back whether the conversion landed on-chain, got rejected, or is still pending.
+- **Wallet portfolio aggregation** — given a wallet, returns staked SOL, pending payouts per campaign, lifetime claimed USDC, and a full claim history (sourced from indexed `PayoutClaim` events).
+- **An in-process event bus + SSE** — every state mutation fires an event, and `/events/stream` fans them out to every connected client.
+
+It does **not**:
+
+- Hold any private keys.
+- Sign any transactions.
+- Touch the Solana RPC except for pubkey validation.
+
+The chain is read by [`indexer/`](../indexer) and written by [`Contract/oracle/`](../Contract/oracle) plus end-user wallets through [`web/`](../web). This service stays out of consensus on purpose.
+
+---
+
+## How it fits in
 
 ```
-                    ┌──────────────────────────────┐
-                    │  web/  (Next.js frontend)    │
-                    └──────┬───────────────────────┘
-                           │ REST + SSE
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│                       api/  (this)                       │
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────────┐  │
-│  │ /campaigns  │  │ /nodes       │  │ /leaves        │  │
-│  │ /demo/*     │  │ /shortlinks  │  │ /wallets       │  │
-│  └──────┬──────┘  └──────┬───────┘  └────────┬───────┘  │
-│         │                │                   │          │
-│         ▼                ▼                   ▼          │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │  Postgres (Neon) — campaign/node/leaf metadata, │   │
-│  │  pending_conversions, click events              │   │
-│  └─────────────────────────────────────────────────┘   │
-└────────┬────────────────────────────┬───────────────────┘
-         │ reads via Prisma           │ writes pending
-         ▼                            ▼
-   ┌────────────┐              ┌──────────────┐
-   │  mcp/      │              │  indexer/    │
-   │ (AI tools) │              │ (oracle      │
-   └────────────┘              │  poller)     │
-                               └──────┬───────┘
-                                      │ register_conversion
-                                      ▼
-                               Solana program
+                  ┌────────────────────────────┐
+                  │  web/   (Next.js)          │
+                  │  mcp/   (AI agents)        │
+                  └──────┬─────────────────────┘
+                         │ REST + SSE
+                         ▼
+        ┌─────────────────────────────────────────────┐
+        │                  api/  (you are here)        │
+        │                                              │
+        │   /campaigns  /nodes  /leaves                │
+        │   /l/:refCode (shortlink + click tracking)   │
+        │   /demo/convert (forwards to oracle)         │
+        │   /wallets/:address/portfolio                │
+        │   /events/stream  (SSE)                      │
+        │                                              │
+        │   ┌─ Fastify 5 + Zod typed routes ─┐         │
+        │   │  Prisma 7 (pg driver adapter)  │         │
+        │   │  In-process EventEmitter bus   │         │
+        │   └────────────────────────────────┘         │
+        └──────┬────────────────────┬──────────────────┘
+               │ writes pending     │ reads chain state
+               ▼                    ▲
+        ┌─────────────┐       ┌──────────────┐
+        │  Postgres   │◀──────│   indexer/   │
+        │   (Neon)    │       │ (B3 listener)│
+        └─────────────┘       └──────┬───────┘
+                                     │
+                                     ▼
+                            ┌───────────────────┐
+                            │ Contract/oracle/  │
+                            │ register_         │
+                            │ conversion()      │
+                            └───────────────────┘
 ```
 
-**Integration contracts:**
-
-| Consumer | Channel | What it reads / writes |
+| Consumer | Channel | Purpose |
 |---|---|---|
-| `web/` | REST + `/events/stream` SSE | Reads campaign/tree state, posts node/leaf drafts, redirects via `/r/:refCode` |
-| `mcp/` | REST | Reads tree, writes node/leaf drafts on behalf of agents (agents sign on-chain themselves) |
-| `indexer/` | Direct Postgres (shared schema) | Reads `PendingConversion` rows, writes `onchain_pda` once tx lands |
-| `Contract/oracle/` | Optional `BACKEND_VERIFY_URL` | Anti-fraud verification before signing on-chain |
+| `web/` | REST + SSE | Reads tree, posts drafts, redirects through `/l/:refCode` |
+| `mcp/` | REST | Lets AI agents post node/leaf drafts (agents sign on-chain themselves) |
+| `indexer/` | Shared Postgres | Flips `onchain_pda` once the chain confirms; writes `PayoutClaim` rows |
+| `Contract/oracle/` | `ORACLE_WEBHOOK_URL` callback | Receives each new pending conversion to sign + push |
 
-> **The Prisma schema in `api/prisma/schema.prisma` is the canonical schema.** `indexer/` regenerates its client from the same file (`prisma generate --schema ../api/prisma/schema.prisma`).
+> The Prisma schema in `prisma/schema.prisma` is canonical. `indexer/` regenerates its client from the same file — there is exactly one source of truth.
 
 ---
 
-## Stack
+## API surface
 
-- **Runtime:** Node ≥22, ESM modules, TypeScript strict mode
-- **HTTP:** Fastify 5 with `@fastify/cors`, `@fastify/swagger`, `@fastify/swagger-ui`
-- **Validation:** Zod 4 via `fastify-type-provider-zod` — every request and response is schema-validated
-- **ORM:** Prisma 7 (driver-adapter mode with `pg`)
-- **Solana SDK:** `@solana/kit` 6.9 (used only for pubkey validation and PDA derivation, never for signing)
-- **Tests:** Native `node --test` runner via `tsx`
+Every route is fully Zod-validated on input and output. Validation errors return `400` with the issue tree. The full OpenAPI 3.1 spec is generated automatically and served at `/docs`.
 
----
+### Campaigns
 
-## Routes
-
-All routes return JSON. Validation errors return `400` with a Zod issue tree. Schemas live in `src/schemas/`.
-
-| Method | Path | Purpose |
+| Method | Path | Returns |
 |---|---|---|
-| `GET` | `/healthz` | Liveness + DB connectivity check |
-| `GET` | `/campaigns/active` | Paginated list of `status=active` campaigns |
-| `GET` | `/campaigns/:id` | Campaign metadata + full tree (nodes + leaves) |
-| `POST` | `/campaigns/draft` | Create off-chain draft before on-chain `create_campaign` |
-| `POST` | `/campaigns/:id/finalize` | Bind a draft to an `onchain_pda` after the tx lands |
-| `POST` | `/nodes/draft` | Create node metadata draft, returns `metadata_hash` (SHA-256) |
-| `POST` | `/nodes/:id/finalize` | Bind to `onchain_pda` |
-| `POST` | `/leaves/draft` | Create leaf metadata + reserve `ref_code` |
-| `POST` | `/leaves/:id/finalize` | Bind to `onchain_pda` |
-| `GET` | `/leaves/by-ref/:refCode` | Resolve a leaf by its short code |
-| `GET` | `/r/:refCode` | 302 redirect to brand's URL + records click |
-| `POST` | `/demo/convert` | Demo-only: simulates a buyer purchase, writes `PendingConversion` |
-| `GET` | `/wallets/:address/portfolio` | Aggregated earnings/stakes/claims for a wallet |
-| `GET` | `/events/stream` | SSE stream of all state transitions (server → client) |
+| `GET` | `/campaigns/active` | Paginated list of `status=active` campaigns with stats (nodes, leaves, clicks, conversions) |
+| `GET` | `/campaigns/:id` | Campaign + full embedded tree (nodes ordered by level + creation; leaves with per-leaf conversion counts) |
+| `GET` | `/campaigns/:id/conversions` | All `verified` / `pushed_to_chain` conversions for `close_and_distribute`, each with the resolved PDA path (campaign, leaf, L1, L2, L3) |
+| `POST` | `/campaigns/draft` | Persist metadata before the on-chain `create_campaign` tx |
+| `POST` | `/campaigns/finalize` | Bind a draft `id` to its resolved `onchain_pda` |
 
-Full OpenAPI schema is auto-generated and served at `/docs` (Swagger UI).
+### Nodes
+
+| Method | Path | Returns |
+|---|---|---|
+| `GET` | `/nodes/:id` | Single node by id |
+| `POST` | `/nodes/draft` | Create node metadata draft (returns the CUID used as the `metadata_cuid` seed) |
+| `POST` | `/nodes/finalize` | Bind a draft to its on-chain PDA |
+
+### Leaves
+
+| Method | Path | Returns |
+|---|---|---|
+| `POST` | `/leaves/draft` | Create leaf metadata + reserve a fresh `ref_code` (8-char ASCII, idempotent) |
+| `POST` | `/leaves/finalize` | Confirm the on-chain tx + consume the `ref_code` reservation |
+| `GET` | `/leaves/by-ref/:refCode` | Resolve a finalized leaf + its campaign + 3-node ancestor path |
+
+### Public storefront
+
+| Method | Path | Returns |
+|---|---|---|
+| `GET` | `/l/:refCode` | Records a click and `302`s to `${FRONTEND_URL}/buy/<refCode>` |
+
+### Demo flow (hackathon-only)
+
+| Method | Path | Returns |
+|---|---|---|
+| `POST` | `/demo/convert` | Persists a `PendingConversion`, forwards to the oracle webhook, returns `status ∈ {pending, pushed_to_chain, rejected}` + optional `txSignature` |
+
+### Wallet portfolio
+
+| Method | Path | Returns |
+|---|---|---|
+| `GET` | `/wallets/:address/portfolio` | Authored nodes & leaves, staked SOL, pending USDC per campaign, lifetime claimed, full claim history |
+
+### System
+
+| Method | Path | Returns |
+|---|---|---|
+| `GET` | `/health` | `{ status: "ok", db: "ok" }` — fails closed if Postgres is unreachable |
+| `GET` | `/events/stream` | Server-Sent Events of every state mutation (see [SSE](#real-time-via-sse)) |
+| `GET` | `/docs` | Swagger UI |
+| `GET` | `/docs/json` | Raw OpenAPI 3.1 spec |
 
 ---
 
 ## Quick start
 
-### 1. Install
-
 ```bash
 cd api
 pnpm install
-```
 
-### 2. Configure
-
-```bash
 cp .env.example .env
-# Edit DATABASE_URL — Hivework uses Neon (serverless Postgres)
-```
+# Fill DATABASE_URL — Neon recommended; any Postgres 15+ works.
 
-### 3. Migrate + seed
-
-```bash
 pnpm db:migrate    # applies prisma/migrations/
 pnpm db:seed       # loads the Halo Cola demo fixture
+
+pnpm dev           # tsx watch, hot reload — http://localhost:3401
 ```
 
-### 4. Run
+Swagger UI is at `http://localhost:3401/docs` the moment it boots.
+
+### Smoke test
 
 ```bash
-pnpm dev           # tsx watch, hot reload
-# or
-pnpm build && pnpm start
+pnpm test          # node --test runs src/tests/smoke.test.ts
 ```
 
-Service listens on `http://localhost:3401` by default. Swagger UI at `/docs`.
-
-### 5. Smoke test
+### Production-style run
 
 ```bash
-pnpm test          # node --test runs api/src/tests/smoke.test.ts
+pnpm build         # tsc → dist/
+pnpm start         # node dist/server.js
 ```
 
 ---
 
-## Environment variables
+## Environment
 
-| Var | Required | Purpose |
-|---|---|---|
-| `DATABASE_URL` | ✅ | Postgres connection string (Neon-compatible) |
-| `PORT` | | Listen port, default `3401` |
-| `LOG_LEVEL` | | Pino log level, default `info` |
-| `CORS_ORIGINS` | | Comma-separated allowed origins for `web/` and `mcp/` |
-| `SHORTLINK_BASE_URL` | | Public URL used to build leaf referral links (e.g. `https://hivework.link`) |
+| Var | Required | Default | Purpose |
+|---|---|---|---|
+| `DATABASE_URL` | yes | — | Postgres connection string (Neon-compatible) |
+| `PORT` | | `3401` | HTTP listen port |
+| `LOG_LEVEL` | | `info` | Pino level: `fatal`, `error`, `warn`, `info`, `debug`, `trace` |
+| `NODE_ENV` | | `development` | `development` / `test` / `production` |
+| `CORS_ORIGIN` | | `http://localhost:3000` | Comma-separated origins. `*` allows everything. |
+| `FRONTEND_URL` | | `http://localhost:3000` | Public URL used to build the `/l/:refCode` redirect target |
+| `ORACLE_WEBHOOK_URL` | | — | Where `/demo/convert` POSTs each new pending row. Leave empty for offline mode. |
+| `ORACLE_WEBHOOK_TOKEN` | | — | Bearer token sent to the oracle. Must match the oracle's `WEBHOOK_TOKEN`. |
 
----
-
-## Data model (high level)
-
-| Prisma model | On-chain twin | Notes |
-|---|---|---|
-| `CampaignMetadata` | `Campaign` PDA | `onchain_pda` is set after finalize |
-| `NodeMetadata` | `Node` PDA | `metadata_hash` (SHA-256 of canonical JSON) is signed on-chain |
-| `LeafMetadata` | `Leaf` PDA | Carries `ref_code` (`[u8; 8]` ASCII) used as PDA seed |
-| `PendingConversion` | `Conversion` PDA after oracle signs | `status` walks `pending → verified → pushed_to_chain` |
-| `ClickEvent` | _(off-chain only)_ | Anti-fraud signal for the oracle |
-
-The full schema lives in [`prisma/schema.prisma`](./prisma/schema.prisma).
+Config is parsed once at boot through `src/config.ts` (Zod-validated). Missing required vars fail-fast with a clear message.
 
 ---
 
-## Demo flow this service powers
+## Data model
 
-1. Brand fills `/campaigns/new` on `web/`. Frontend `POST /campaigns/draft` → `web/` triggers on-chain `create_campaign` → `POST /campaigns/:id/finalize`.
-2. Agents (via `mcp/`) and humans (via `web/`) post `/nodes/draft`, sign on-chain `create_node`, then call finalize.
-3. Creators publish leaves through `/leaves/draft` → on-chain `create_leaf` → finalize. Each leaf gets a public URL `/r/:refCode`.
-4. A buyer clicks `/r/:refCode` on `web/` → 302 redirect, `ClickEvent` recorded.
-5. Demo `/buy/[refCode]` page calls `POST /demo/convert`. A `PendingConversion` row is written and the event bus fires `pending_conversion`.
-6. `indexer/`'s oracle poller picks the row up, validates it, and submits `register_conversion` on-chain. Once confirmed, the listener flips the row to `pushed_to_chain` and the SSE stream fans out the update to every connected `web/` client.
+The Prisma schema is the canonical source of truth and is shared with `indexer/`.
+
+| Model | On-chain twin | Notes |
+|---|---|---|
+| `CampaignMetadata` | `Campaign` PDA | Tracks pool, deadline, conversion value, brand/product copy. `onchain_pda` flips after finalize. |
+| `NodeMetadata` | `Node` PDA | L1 / L2 / L3 decision in the tree. Hashes its canonical JSON for on-chain anchoring. |
+| `LeafMetadata` | `Leaf` PDA | Carries the 8-char `ref_code` used as PDA seed. |
+| `RefCodeReservation` | _(off-chain only)_ | Idempotent ref-code allocator with TTL. |
+| `Click` | _(off-chain only)_ | One row per `/l/:refCode` hit; powers anti-fraud + analytics. |
+| `PendingConversion` | `Conversion` PDA after oracle signs | Status: `pending → pushed_to_chain` (happy path) or `rejected`. |
+| `PayoutClaim` | `PayoutClaimed` event | Inserted by `indexer/` on every on-chain payout claim. Drives the portfolio view. |
+
+Full schema: [`prisma/schema.prisma`](./prisma/schema.prisma).
+
+---
+
+## Real-time via SSE
+
+`GET /events/stream` is a plain `text/event-stream` connection. Every mutation in the API emits a typed event through `src/events.ts` and the SSE plugin pushes it to every connected client. The frontend uses this to make the tree "light up" the moment a conversion lands.
+
+```ts
+const es = new EventSource("http://localhost:3401/events/stream");
+es.addEventListener("conversion_confirmed", (e) => {
+  const { conversionId, leafId, txSig } = JSON.parse(e.data);
+  // ...animate the cascade
+});
+```
+
+Event types currently emitted (see `src/events.ts` for the typed union):
+
+| Event | Payload |
+|---|---|
+| `node_created` | `campaignId`, `nodeId`, `level`, `creatorWallet` |
+| `leaf_created` | `campaignId`, `leafId`, `refCode`, `creatorWallet` |
+| `click` | `leafId`, `refCode` |
+| `conversion_pending` | `pendingId`, `leafId`, `valueUsdc` |
+| `conversion_confirmed` | `conversionId`, `leafId`, `txSig` |
+
+No client library required. Auto-reconnects come for free with `EventSource`.
+
+---
+
+## Engineering choices worth noting
+
+- **Typed end-to-end.** `fastify-type-provider-zod` makes every request handler infer parameter, body, query, and response types directly from a Zod schema. No `any`, no duplicated types between the validator and the handler.
+- **Drafts → finalize, never two-phase commit.** Every on-chain write happens through `POST /<resource>/draft` first (persists metadata and reserves any identifiers), then the wallet signs on-chain, then `POST /<resource>/finalize` binds the resolved PDA. If the user closes the tab between steps the draft is harmless and gets cleaned up.
+- **Decimal as string.** USDC (`Decimal(18, 6)`) and SOL stakes (`Decimal(18, 9)`) are wider than a JS number. We serialize as strings; the frontend parses for display only.
+- **Idempotent ref-code generation.** Eight-char ASCII codes are reserved before the on-chain tx via `RefCodeReservation` (TTL'd). A retry of the same draft returns the same code; collisions are rejected at SQL `UNIQUE` time.
+- **Fail-soft oracle integration.** If `ORACLE_WEBHOOK_URL` is unset or unreachable, `/demo/convert` still persists the pending row and returns `status: "pending"`. The indexer's poller can drain queued rows later.
+- **One schema, two services.** `indexer/` regenerates its Prisma client from `api/prisma/schema.prisma`. Adding a column is a single migration.
 
 ---
 
@@ -189,26 +268,42 @@ The full schema lives in [`prisma/schema.prisma`](./prisma/schema.prisma).
 ```
 api/
 ├── prisma/
-│   ├── schema.prisma         # canonical schema for B1 + B3 (indexer)
-│   ├── migrations/
+│   ├── schema.prisma         # canonical schema, shared with indexer/
+│   ├── migrations/           # idempotent SQL migrations
 │   └── seed.ts               # Halo Cola demo fixture
 └── src/
-    ├── server.ts             # entrypoint
+    ├── server.ts             # entrypoint (PORT, signal handlers)
     ├── app.ts                # buildApp() — registers plugins + routes
-    ├── config.ts             # env parsing (zod-validated)
-    ├── events.ts             # in-process event bus + SSE adapter
-    ├── refcode.ts            # 8-char ASCII generator + uniqueness reservation
-    ├── plugins/              # cors, swagger, prisma, zod-type-provider
-    ├── routes/               # campaigns, nodes, leaves, shortlink, wallets, demo, events-stream, health
-    ├── schemas/              # zod schemas (campaign, node, leaf, shared)
-    └── tests/                # smoke tests via node:test
+    ├── config.ts             # Zod-validated env parsing
+    ├── events.ts             # typed in-process event bus
+    ├── refcode.ts            # 8-char ASCII allocator + uniqueness guard
+    ├── plugins/
+    │   ├── cors.ts           # @fastify/cors
+    │   ├── swagger.ts        # OpenAPI generation + Swagger UI
+    │   ├── prisma.ts         # singleton PrismaClient lifecycle
+    │   ├── zod.ts            # fastify-type-provider-zod wiring
+    │   └── event-bus.ts      # exposes app.events for routes
+    ├── routes/
+    │   ├── campaigns.ts      # CRUD + tree + conversions
+    │   ├── nodes.ts          # CRUD draft/finalize
+    │   ├── leaves.ts         # CRUD + by-ref lookup
+    │   ├── shortlink.ts      # /l/:refCode + click recording
+    │   ├── demo.ts           # /demo/convert + oracle webhook bridge
+    │   ├── wallets.ts        # portfolio aggregate
+    │   ├── events-stream.ts  # SSE adapter for app.events
+    │   └── health.ts         # /health
+    ├── schemas/              # Zod schemas (campaign, node, leaf, shared)
+    └── tests/
+        └── smoke.test.ts     # boots the app + hits the critical routes
 ```
 
 ---
 
-## See also
+## Related modules
 
-- **Root architecture overview:** [`../README.md`](../README.md#system-architecture)
-- **Indexer that consumes our pending rows:** [`../indexer/README.md`](../indexer/README.md)
-- **MCP server that calls our routes for AI agents:** [`../mcp/README.md`](../mcp/README.md)
-- **Frontend that consumes our REST + SSE:** [`../web/README.md`](../web/README.md)
+- **Root architecture overview** → [`../README.md`](../README.md#system-architecture)
+- **Frontend integration guide** (typed wire formats, examples, gotchas) → [`./FRONTEND.md`](./FRONTEND.md)
+- **Indexer that flips `onchain_pda` + writes `PayoutClaim`** → [`../indexer/README.md`](../indexer/README.md)
+- **Oracle that signs `register_conversion`** → [`../Contract/oracle/README.md`](../Contract/oracle/README.md)
+- **MCP server that lets AI agents call this API** → [`../mcp/README.md`](../mcp/README.md)
+- **Frontend that consumes the REST + SSE** → [`../web/README.md`](../web/README.md)

@@ -6,6 +6,7 @@ import { parseAnchorEvents } from './parser.js'
 import { dispatch } from './handlers.js'
 import { log } from '../log.js'
 import { listenerStatus } from '../status.js'
+import { sleep } from '../sleep.js'
 
 const PLACEHOLDER = 'PLACEHOLDER_UNTIL_GROUP_A_DEPLOYS'
 
@@ -58,14 +59,4 @@ export async function startListener(cfg: Config, signal: AbortSignal): Promise<v
       await sleep(delay, signal)
     }
   }
-}
-
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((res) => {
-    const t = setTimeout(res, ms)
-    signal.addEventListener('abort', () => {
-      clearTimeout(t)
-      res()
-    }, { once: true })
-  })
 }

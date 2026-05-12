@@ -8,7 +8,9 @@ export type LeafBuyContext = {
   leaf: TreeNode;
   campaign: CampaignSummary;
   path: TreeNode[]; // root → hook → audio → visual → leaf
-  pricingUsdc: number;
+  /** USDC the brand commits to distribute across the contributor cascade for
+   *  each verified conversion. NOT the product price the buyer pays. */
+  conversionValueUsdc: number;
 };
 
 // Mock lookup commented out — replaced by useLeafByRef() (Tier 3).

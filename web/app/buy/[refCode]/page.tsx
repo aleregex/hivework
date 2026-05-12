@@ -23,6 +23,10 @@ import { ApiError } from "@/lib/api/client";
 import { WalletConnectButton } from "@/components/wallet-connect-button";
 import { transferUsdc } from "@/lib/solana/usdc-transfer";
 
+// Demo storefront price. Independent from campaign.conversionValueUsdc, which
+// is what the brand pays out to the contributor cascade per conversion.
+const DEMO_PRODUCT_PRICE_USDC = 0.2;
+
 type Phase = "idle" | "paying" | "attesting" | "done" | "error";
 
 type BuyResult = {
@@ -95,7 +99,8 @@ export default function BuyPage({ params }: PageProps) {
     );
   }
 
-  const { leaf, campaign, path, pricingUsdc } = ctx;
+  const { leaf, campaign, path, conversionValueUsdc } = ctx;
+  const productPriceUsdc = DEMO_PRODUCT_PRICE_USDC;
 
   async function buy() {
     if (!publicKey) {
@@ -118,7 +123,8 @@ export default function BuyPage({ params }: PageProps) {
       refCode,
       buyer: publicKey.toBase58(),
       recipient: campaign.creatorWallet,
-      amountUsdc: pricingUsdc,
+      productPriceUsdc,
+      conversionValueUsdc,
       usdcMint: usdcMintStr,
       campaignId: campaign.id,
       leafId: leaf.id,
@@ -135,7 +141,7 @@ export default function BuyPage({ params }: PageProps) {
         payer: publicKey,
         recipient: new PublicKey(campaign.creatorWallet),
         usdcMint: new PublicKey(usdcMintStr),
-        amountUsdc: pricingUsdc,
+        amountUsdc: productPriceUsdc,
         sendTransaction,
       });
       console.log("[buy] payment confirmed", { paymentSig });
@@ -154,13 +160,13 @@ export default function BuyPage({ params }: PageProps) {
     setPhase("attesting");
     console.log("[buy] phase=attesting · posting /demo/convert", {
       refCode,
-      valueUsdc: pricingUsdc,
+      valueUsdc: conversionValueUsdc,
       buyerWallet: publicKey.toBase58(),
     });
     try {
       const res = await postDemoConvert({
         refCode,
-        valueUsdc: pricingUsdc,
+        valueUsdc: conversionValueUsdc,
         buyerWallet: publicKey.toBase58(),
         source: "demo_buy_page",
       });
@@ -225,7 +231,7 @@ export default function BuyPage({ params }: PageProps) {
               </div>
               <div className="text-right">
                 <div className="font-mono text-3xl font-semibold text-honey">
-                  ${pricingUsdc}
+                  ${productPriceUsdc}
                 </div>
                 <div className="text-[10px] uppercase tracking-wider text-muted">
                   USDC
@@ -298,8 +304,8 @@ export default function BuyPage({ params }: PageProps) {
                       Payment sent · conversion attested on-chain
                     </p>
                     <p className="text-xs text-muted">
-                      ${pricingUsdc} USDC went to @{campaign.brandHandle}. The
-                      tree will reflect the conversion in real time.
+                      ${productPriceUsdc} USDC went to @{campaign.brandHandle}.
+                      The tree will reflect the conversion in real time.
                     </p>
                   </>
                 ) : result.oracleStatus === "pending" ? (
@@ -366,15 +372,29 @@ export default function BuyPage({ params }: PageProps) {
                 <div className="flex items-start gap-2 rounded-md border border-wax bg-bg2 p-3 text-[11px] text-muted">
                   <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-honey" />
                   <p>
-                    You&apos;ll sign two things: a <strong className="text-foreground">${pricingUsdc} USDC transfer</strong>{" "}
+                    You&apos;ll sign two things: a{" "}
+                    <strong className="text-foreground">
+                      ${productPriceUsdc} USDC transfer
+                    </strong>{" "}
                     to{" "}
                     <span className="font-mono text-foreground">
                       {campaign.creatorWallet.slice(0, 4)}…
                       {campaign.creatorWallet.slice(-4)}
                     </span>{" "}
                     (the brand), then the oracle attests the conversion
-                    on-chain. Payouts to contributors cascade when the campaign
-                    closes.
+                    on-chain.{" "}
+                    {conversionValueUsdc > 0 ? (
+                      <>
+                        The brand has committed{" "}
+                        <strong className="text-foreground">
+                          ${conversionValueUsdc} USDC
+                        </strong>{" "}
+                        per sale to be split across the contributor cascade
+                        when the campaign closes.
+                      </>
+                    ) : (
+                      <>Payouts to contributors cascade when the campaign closes.</>
+                    )}
                   </p>
                 </div>
 
@@ -400,7 +420,7 @@ export default function BuyPage({ params }: PageProps) {
                       ? "Sending USDC…"
                       : phase === "attesting"
                       ? "Attesting conversion…"
-                      : `Pay $${pricingUsdc} USDC`}
+                      : `Pay $${productPriceUsdc} USDC`}
                   </Button>
                 )}
               </>

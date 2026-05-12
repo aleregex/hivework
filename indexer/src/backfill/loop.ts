@@ -8,6 +8,7 @@
 // `npm run codama:generate` produces them, this is a heartbeat that logs only.
 import type { Config } from '../config.js'
 import { log } from '../log.js'
+import { sleep } from '../sleep.js'
 
 const PLACEHOLDER = 'PLACEHOLDER_UNTIL_GROUP_A_DEPLOYS'
 
@@ -29,14 +30,4 @@ export async function startBackfill(cfg: Config, signal: AbortSignal): Promise<v
     }
     await sleep(30_000, signal)
   }
-}
-
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((res) => {
-    const t = setTimeout(res, ms)
-    signal.addEventListener('abort', () => {
-      clearTimeout(t)
-      res()
-    }, { once: true })
-  })
 }

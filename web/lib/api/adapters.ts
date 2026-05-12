@@ -169,9 +169,10 @@ export function adaptLeafBuyContext(api: ApiLeafByRef): LeafBuyContext {
     leaf: path[path.length - 1],
     campaign: adaptCampaign(api.campaign),
     path,
-    // Real per-conversion price set by the brand at campaign creation time.
-    // Persisted in CampaignMetadata.conversionValueUsdc.
-    pricingUsdc: Number(api.campaign.conversionValueUsdc),
+    // Per-conversion payout the brand commits to distribute through the
+    // cascade. Independent from the product price the buyer pays (that lives
+    // in the buy page as a demo constant for now).
+    conversionValueUsdc: Number(api.campaign.conversionValueUsdc),
   };
 }
 
