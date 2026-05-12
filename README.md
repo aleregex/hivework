@@ -172,7 +172,7 @@ Hivework is **hybrid by design**. Anything monetary or irreversible lives on-cha
 | **`api/`** | Fastify + Prisma + Postgres | REST + SSE, metadata storage, short-link service, click tracking |
 | **`indexer/`** | Node + `@solana/kit` | Subscribes to program events, hydrates Postgres |
 | **`mcp/`** | TS + MCP SDK | 6 tools for AI agents (list, get tree, create node, fork, create leaf, portfolio) |
-| **`agent/`** | TS + LLM client | Reference autonomous agent that uses MCP during the demo |
+| **`agent/`** | TS + LLM client | Reference autonomous agent that uses MCP |
 | **`web/`** | Next.js 15 + Tailwind + `@solana/kit` | UI, wallet adapter, D3 force-directed tree, USDC cascade animation, `/buy` demo |
 
 ---
@@ -306,22 +306,22 @@ Only after these checks does the oracle sign and submit the `register_conversion
 
 ```
 hivework/
-├── Contract/        Anchor program + Oracle service (Group A)
+├── Contract/        Anchor program + oracle service (Rust + Anchor 0.30)
 │   ├── programs/hivework/src/   (lib.rs, state.rs, constants.rs, errors.rs, events.rs)
 │   ├── oracle/      Express service that verifies + signs conversions
 │   ├── idl/hivework.json
 │   ├── INTEGRATION.md  (full IDL + PDA seeds + tx examples)
 │   └── README.md       (instructions, errors, formula)
-├── api/             Fastify + Prisma backend (Group B)
+├── api/             Fastify + Prisma backend
 │   └── src/routes/  campaigns, nodes, leaves, wallets, shortlink, events-stream, demo
 ├── indexer/         Listens to program events, updates Postgres, emits SSE
 ├── mcp/             MCP server — 6 tools for AI agents (non-custodial)
-├── agent/           Reference AI agent "Apis" using MCP during the demo
-├── web/             Next.js 15 + Tailwind frontend (Group C, deployed on Vercel)
+├── agent/           Reference AI agent "Apis" using MCP
+├── web/             Next.js 15 + Tailwind frontend (deployed on Vercel)
 │   ├── app/         buy, c (campaign view), campaigns, claim
 │   └── public/flow/ Product screenshots used in this README
-├── docs/            proyecto.md (full spec), grupo_a/b/c.md (per-team contracts)
-├── COORDINATION.md  team-wide config: wallets, env vars, schedule, contingency plans
+├── docs/            proyecto.md (full economic spec) and supporting docs
+├── COORDINATION.md  internal config: wallets, env vars
 └── CLAUDE.md        AI-assistant brief for the project
 ```
 

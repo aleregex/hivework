@@ -1,4 +1,3 @@
-// Regenerate the Anchor client from Grupo A's IDL using Codama.
 // Wired to a stable path: `programs/hivework/target/idl/hivework.json`.
 // If the IDL doesn't exist yet, exit 0 with a clear warning so npm scripts
 // downstream don't break.
@@ -11,7 +10,7 @@ const OUT_DIR = resolve(process.cwd(), 'src', 'generated', 'anchor-client')
 async function main() {
   if (!existsSync(IDL_PATH)) {
     console.warn(`[codama] IDL not found at ${IDL_PATH} — skipping codegen.`)
-    console.warn('[codama] Re-run after Grupo A ships the program: `npm run codama:generate`')
+    console.warn('[codama] Re-run after Grupo ships the program: `npm run codama:generate`')
     return
   }
 

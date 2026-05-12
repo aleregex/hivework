@@ -130,7 +130,6 @@ function isLegitimate({ walletPubkey, campaignPubkey, ip }) {
   return { ok: true };
 }
 
-// POST /webhook/conversion — Grupo B envía conversiones
 app.post('/webhook/conversion', async (req, res) => {
   const reqId = Math.random().toString(36).slice(2, 8);
   console.log(`[oracle][${reqId}] webhook recibido`, {
