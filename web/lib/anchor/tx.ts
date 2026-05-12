@@ -297,7 +297,6 @@ export async function closeCampaignOnchain(
   program: Program,
   args: CloseCampaignArgs
 ): Promise<{ signature: string }> {
-  // @ts-expect-error - closeCampaign will be available in the IDL after running `anchor build`
   const signature = await program.methods
     .closeCampaign()
     .accountsStrict({
