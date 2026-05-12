@@ -6,11 +6,17 @@ pub const CONVERSION_SEED: &[u8] = b"conversion";
 
 // Stakes requeridos para prevenir spam (en lamports).
 // 1 SOL = 1_000_000_000 lamports.
-// Valores de producción según CLAUDE.md § Anti-fraud: 1.0 / 0.5 / 0.25 / 0.1 SOL.
-pub const L1_STAKE_AMOUNT: u64 = 1_000_000_000;    // 1.0 SOL
-pub const L2_STAKE_AMOUNT: u64 = 500_000_000;      // 0.5 SOL
-pub const L3_STAKE_AMOUNT: u64 = 250_000_000;      // 0.25 SOL
-pub const LEAF_STAKE_AMOUNT: u64 = 100_000_000;    // 0.1 SOL
+//
+// Los stakes son DEPÓSITOS anti-spam en SOL (el pago real vive en USDC, en el
+// escrow de la campaña). A precios de SOL ≈ $160 USD, los siguientes valores
+// equivalen a unos centavos cada uno — suficientes para frenar spam masivo
+// sin hacer la participación costosa para usuarios reales.
+//
+// L1 ≈ $0.10, escalando hacia abajo por nivel hasta el leaf en ≈ $0.01.
+pub const L1_STAKE_AMOUNT: u64 = 600_000;     // 0.0006 SOL ≈ $0.10
+pub const L2_STAKE_AMOUNT: u64 = 300_000;     // 0.0003 SOL ≈ $0.05
+pub const L3_STAKE_AMOUNT: u64 = 150_000;     // 0.00015 SOL ≈ $0.025
+pub const LEAF_STAKE_AMOUNT: u64 = 60_000;    // 0.00006 SOL ≈ $0.01
 
 pub const PLATFORM_FEE_PERCENTAGE: u8 = 5;
 pub const LEAF_BONUS_PERCENTAGE: u8 = 30;
