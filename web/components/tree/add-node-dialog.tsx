@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { NodeLevel, TreeNode } from "@/lib/mocks/tree";
+import type { TreeNode } from "@/lib/mocks/tree";
 import { useHiveworkProgram } from "@/lib/anchor/program";
 import { createNodeOnchain } from "@/lib/anchor/tx";
 import { postNodeDraft, postNodeFinalize } from "@/lib/api/hooks";
@@ -65,8 +65,6 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   /** Called with the freshly-built TreeNode so the caller can splice it into local state. */
   onCreate: (node: TreeNode) => void;
-  /** Called when the parent is L3 — caller should switch to Publish flow with the path locked up to L3. */
-  onSwitchToPublish?: (parentL3: TreeNode) => void;
   /** Wallet handle for the author of the new node. Defaults to "you". */
   authorHandle?: string;
   /** Off-chain campaign id (CUID). Required to call the api drafts. */
@@ -80,7 +78,6 @@ export function AddNodeDialog({
   open,
   onOpenChange,
   onCreate,
-  onSwitchToPublish,
   authorHandle = "you",
   campaignId,
   campaignOnchainPda,
@@ -89,9 +86,10 @@ export function AddNodeDialog({
   const { publicKey } = useWallet();
   const queryClient = useQueryClient();
   // Determine the level of the new child. Falls back to L1 when parent is null
-  // (top-level hook). Capped at 4 — L4 is delegated to the publish flow.
-  const childLevel: NodeLevel = parent
-    ? (Math.min(parent.level + 1, 4) as NodeLevel)
+  // (top-level hook). Only L1/L2/L3 are valid here — L3 → L4 (post) is handled
+  // by NodeDetailPanel jumping straight to the Publish tab.
+  const childLevel: 1 | 2 | 3 = parent
+    ? ((parent.level + 1) as 1 | 2 | 3)
     : 1;
 
   const form = useForm<FormValues>({
@@ -106,44 +104,8 @@ export function AddNodeDialog({
     if (open) form.reset({ title: "", description: "" });
   }, [open, parent, form]);
 
-  // L3 parent → caller wants to publish a post, not add a node. Surface the
-  // detour cleanly so the user understands why we're switching tabs.
-  if (childLevel === 4) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Publishing a post, not a node</DialogTitle>
-            <DialogDescription>
-              Children of an L3 visual are{" "}
-              <span className="text-honey">posts</span> — published content with
-              a ref-link + QR. That flow is on the tree itself: switch to the
-              Publish tab and we&apos;ll pre-lock the path up to this visual.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="honey"
-              onClick={() => {
-                if (parent) onSwitchToPublish?.(parent);
-                onOpenChange(false);
-              }}
-            >
-              <Sparkles className="h-4 w-4" />
-              Open publish flow
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  // L1/L2/L3 child — actual node creation form.
-  const stake = STAKE_BY_LEVEL[childLevel as 1 | 2 | 3];
-  const levelLabel = LEVEL_LABEL[childLevel as 1 | 2 | 3];
+  const stake = STAKE_BY_LEVEL[childLevel];
+  const levelLabel = LEVEL_LABEL[childLevel];
 
   const submit = async (values: FormValues) => {
     if (!program || !publicKey) {
@@ -190,7 +152,7 @@ export function AddNodeDialog({
       const { nodePda, signature } = await createNodeOnchain(program, {
         campaign: new PublicKey(campaignOnchainPda),
         creator: publicKey,
-        level: childLevel as 1 | 2 | 3,
+        level: childLevel,
         parentNode,
         metadata: { title, description },
         metadataCuid: draft.id,

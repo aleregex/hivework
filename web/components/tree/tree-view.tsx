@@ -26,6 +26,7 @@ import { PublicKey } from "@solana/web3.js";
 import { useHiveworkProgram } from "@/lib/anchor/program";
 import { createLeafOnchain } from "@/lib/anchor/tx";
 import { postLeafDraft, postLeafFinalize } from "@/lib/api/hooks";
+import { shortlinkDisplay } from "@/lib/shortlink";
 
 const PULSE_MS = 1200;
 const CASCADE_MS = 4500;
@@ -279,7 +280,9 @@ export function TreeView({
     setNodes((prev) => [...prev, newLeaf]);
     pulseFor([newLeaf.id]);
     toast.success("Post published", {
-      description: `hivework.link/${newLeaf.refCode} · share in your bio`,
+      description: newLeaf.refCode
+        ? `${shortlinkDisplay(newLeaf.refCode)} · share in your bio`
+        : "share in your bio",
       duration: 2400,
     });
   }, [pulseFor]);
@@ -462,7 +465,7 @@ export function TreeView({
       setPublish((p) => ({ ...p, refCode }));
       queryClient.invalidateQueries({ queryKey: ["campaigns", campaignId] });
       toast.success("Post published — ref-link is live", {
-        description: `hivework.link/${refCode}`,
+        description: shortlinkDisplay(refCode),
         duration: 2600,
       });
     } catch (err) {
@@ -616,6 +619,7 @@ export function TreeView({
                       onClose={() => setSelected(null)}
                       onHighlightPath={highlightPath}
                       onAddChild={(parent) => setAddUnder(parent)}
+                      onSwitchToPublish={switchToPublishFromL3}
                     />
                   ) : (
                     <EmptyInspect />
@@ -688,7 +692,6 @@ export function TreeView({
           if (!open) setAddUnder(undefined);
         }}
         onCreate={handleNodeCreated}
-        onSwitchToPublish={switchToPublishFromL3}
         campaignId={campaignId}
         campaignOnchainPda={campaignOnchainPda}
       />

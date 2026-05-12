@@ -131,7 +131,7 @@ export function YourEarningsStrip({ campaignId }: Props) {
                 stake locked
               </span>
               <span className="font-mono text-base font-bold tabular text-foreground">
-                {earnings.stakeSol.toFixed(2)} SOL
+                {earnings.stakeSol.toFixed(4)} SOL
               </span>
             </div>
           </div>
@@ -306,7 +306,7 @@ function WithdrawDialog({
         toast.message("No stake to release (already settled)");
       } else {
         toast.success(
-          `Released ${earnings.releasableStakeSol.toFixed(2)} SOL stake`,
+          `Released ${earnings.releasableStakeSol.toFixed(4)} SOL stake`,
           { description: `${sigs.length} tx · ${sigs[0].slice(0, 8)}…` }
         );
       }
@@ -392,7 +392,7 @@ function WithdrawDialog({
               </span>
             </div>
             <span className="font-mono text-[10px] tabular text-muted">
-              total {earnings.stakeSol.toFixed(2)} SOL
+              total {earnings.stakeSol.toFixed(4)} SOL
             </span>
           </header>
 
@@ -408,10 +408,10 @@ function WithdrawDialog({
                 releasable
               </span>
               <div className="font-mono text-lg font-semibold tabular text-foreground">
-                {earnings.releasableStakeSol.toFixed(2)} SOL
+                {earnings.releasableStakeSol.toFixed(4)} SOL
                 {earnings.forfeitStakeSol > 0 && (
                   <span className="ml-2 font-mono text-[11px] font-normal text-faint">
-                    · {earnings.forfeitStakeSol.toFixed(2)} forfeit
+                    · {earnings.forfeitStakeSol.toFixed(4)} forfeit
                   </span>
                 )}
               </div>
@@ -476,7 +476,7 @@ function ContributionRow({ c }: { c: MyContribution }) {
         {c.conversions} conv
       </span>
       <span className="font-mono text-[12px] font-semibold tabular text-foreground">
-        {c.stakeSol.toFixed(2)} SOL
+        {c.stakeSol.toFixed(4)} SOL
       </span>
       <span
         className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${statusStyles[c.stakeStatus]}`}

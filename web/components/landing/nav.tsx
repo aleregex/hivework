@@ -15,7 +15,7 @@ export function Nav() {
 
         <div className="hidden items-center gap-1 font-mono text-[12px] text-muted md:flex">
           <NavLink href="#protocol">how it works</NavLink>
-          <NavLink href="#campaigns">campaigns</NavLink>
+          <NavLink href="/campaigns">campaigns</NavLink>
           <NavLink href="https://github.com/aleregex/hivework" external>
             github
           </NavLink>

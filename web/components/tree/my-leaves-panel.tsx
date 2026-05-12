@@ -18,6 +18,7 @@ import { WalletConnectButton } from "@/components/wallet-connect-button";
 import { useCampaign, usePortfolio } from "@/lib/api/hooks";
 import { adaptMyLeavesForCampaign } from "@/lib/api/adapters";
 import { summarizeMyLeaves, type MyLeafEnriched } from "@/lib/mocks/my-leaves";
+import { shortlinkDisplay, shortlinkUrl } from "@/lib/shortlink";
 
 type Props = {
   campaignId: string;
@@ -112,7 +113,7 @@ export function MyLeavesPanel({ campaignId }: Props) {
 }
 
 function LeafRow({ leaf }: { leaf: MyLeafEnriched }) {
-  const url = `https://hivework.link/${leaf.refCode}`;
+  const url = shortlinkUrl(leaf.refCode);
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -147,7 +148,7 @@ function LeafRow({ leaf }: { leaf: MyLeafEnriched }) {
               className="group inline-flex min-w-0 flex-1 items-center justify-between gap-2 rounded border border-line bg-ink px-2 py-1.5 text-left font-mono text-[11px] transition-colors hover:border-honey/40"
               title="Click to copy"
             >
-              <span className="truncate">hivework.link/{leaf.refCode}</span>
+              <span className="truncate">{shortlinkDisplay(leaf.refCode)}</span>
               {copied ? (
                 <Check className="h-3 w-3 text-live" />
               ) : (

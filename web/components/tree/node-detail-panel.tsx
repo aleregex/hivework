@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { TreeNode } from "@/lib/mocks/tree";
+import { shortlinkDisplay } from "@/lib/shortlink";
 
 const LEVEL_LABEL: Record<number, string> = {
   0: "campaign",
@@ -38,6 +39,8 @@ type Props = {
   onHighlightPath?: (nodeId: string) => void;
   /** Open the AddNodeDialog with this node as the parent. */
   onAddChild?: (parent: TreeNode) => void;
+  /** Jump straight to the Publish tab with this L3 visual pre-locked. */
+  onSwitchToPublish?: (parentL3: TreeNode) => void;
 };
 
 export function NodeDetailPanel({
@@ -45,6 +48,7 @@ export function NodeDetailPanel({
   onClose,
   onHighlightPath,
   onAddChild,
+  onSwitchToPublish,
 }: Props) {
   // L4 is a published post — it has no children. Everything else can spawn one.
   const canAddChild = node.level < 4;
@@ -120,7 +124,7 @@ export function NodeDetailPanel({
           </p>
           <div className="mt-1.5 flex items-center justify-between gap-2">
             <code className="truncate font-mono text-[11px] text-foreground">
-              hivework.link/{node.refCode}
+              {shortlinkDisplay(node.refCode)}
             </code>
             <Button
               asChild
@@ -148,11 +152,13 @@ export function NodeDetailPanel({
       {/* Primary CTA — grow the tree from this node. The action shape changes
           based on what level the child would be: nodes for L1/L2/L3, a post
           (publish flow) when the parent is L3. */}
-      {canAddChild && onAddChild && (
+      {canAddChild && (childIsPost ? onSwitchToPublish : onAddChild) && (
         <Button
           variant="honey"
           size="md"
-          onClick={() => onAddChild(node)}
+          onClick={() =>
+            childIsPost ? onSwitchToPublish?.(node) : onAddChild?.(node)
+          }
           className="w-full"
         >
           {childIsPost ? (

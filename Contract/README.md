@@ -1,36 +1,282 @@
-# Hivework — Smart Contract & Oracle (Grupo A)
+# `Contract/` — Hivework Solana Program (Anchor)
 
-Programa Anchor para el protocolo Hivework: marketing descentralizado con campañas, árboles de contenido, staking anti-spam y distribución proporcional de USDC.
+> **Group A.** The on-chain core of Hivework. An Anchor program that custodies USDC escrow, locks SOL stakes, attests to conversions through an authorized oracle, and distributes payouts proportionally along the genealogical path that produced each sale.
 
-## Estructura del proyecto
+[![Solana](https://img.shields.io/badge/Solana-devnet-9945FF?logo=solana&logoColor=white)](https://explorer.solana.com/address/8wsaheyJ3e1e8zRUFX22apjvutNcaEagTyk21N75Ybz8?cluster=devnet)
+[![Anchor](https://img.shields.io/badge/anchor-1.0-blue)](https://www.anchor-lang.com)
+[![Rust](https://img.shields.io/badge/rust-edition--2021-orange?logo=rust)](https://www.rust-lang.org)
+
+🔗 **Program (devnet):** [`8wsaheyJ3e1e8zRUFX22apjvutNcaEagTyk21N75Ybz8`](https://explorer.solana.com/address/8wsaheyJ3e1e8zRUFX22apjvutNcaEagTyk21N75Ybz8?cluster=devnet)
+
+---
+
+## What this program is
+
+Hivework's on-chain program is the **only place where money moves**. Every other service (`api/`, `indexer/`, `mcp/`, `web/`, `agent/`) is glue around this binary. The program owns four account types and 11 instructions. Its role is narrow and load-bearing:
+
+- **Custody.** Holds the brand's USDC in a campaign-scoped escrow ATA from `create_campaign` until close.
+- **Stake locking.** Forces every node and leaf creator to lock SOL at creation, releasing it only if the node (or any descendant) generates ≥ 1 conversion.
+- **Attribution.** Stores the genealogical path `[L1, L2, L3]` on every leaf as part of the on-chain account, immutable and auditable.
+- **Attestation gate.** Only the campaign's pre-declared `oracle_authority` can call `register_conversion`. No conversion can be forged by participants.
+- **Payout math.** Computes the proportional weight of each ancestor and distributes USDC accordingly with a 5% platform fee and a 30% leaf bonus.
+- **Anti-spam economics.** Loser stakes are forfeited to a redistribution pool that winners share proportionally — turning spammers into fundraisers for legitimate creators.
+
+---
+
+## How it integrates with the rest of the system
+
+```
+   web/ + agent/  ───── sign Anchor txs ────►  Hivework program  ◄──── register_conversion
+                                                  │  ▲                       │
+                                                  │  │                       │
+            emits 5 events ──────────►            │  │ reads accounts        │ signs with
+            CampaignCreated, NodeCreated,         │  │ via getAccountInfo    │ oracle keypair
+            LeafCreated, ConversionRegistered,    │  │                       │
+            CampaignClosed                        ▼  │                       │
+                                            Solana devnet                    │
+                                              │   ▲                          │
+                                              │   │                          │
+                                              ▼   │                          │
+                              ┌─────────────────────────────────┐            │
+                              │           indexer/              │            │
+                              │   listener (parses events)      │ ───────────┘
+                              │   oracle poller (signs txs)     │
+                              └────────────┬────────────────────┘
+                                           ▼
+                                    Postgres (Neon)
+                                           ▲
+                                           │
+                                       api/  ──── reads tree, writes drafts
+                                           ▲
+                                           │
+                                       web/  +  mcp/
+```
+
+**Integration contracts:**
+
+| Counterparty | Reads | Writes |
+|---|---|---|
+| `web/` (`lib/anchor/`) | All account types via Anchor codegen | `create_campaign`, `create_node`, `create_leaf`, `claim_payout`, `claim_leaf_payout` |
+| `agent/` via `mcp/` | `Campaign`, `Node`, `Leaf` | `create_node`, `create_leaf` (signed by agent's own wallet) |
+| `indexer/` listener | All program logs (Codama-decoded) | _(read only)_ |
+| `indexer/` oracle / `Contract/oracle/` | `Leaf` (path), `Campaign` | `register_conversion` (only signer permitted) |
+| Anyone (post-deadline) | `Campaign`, `Node`, `Leaf`, `Conversion` | `close_and_distribute`, `forfeit_*`, `withdraw_unused_usdc`, `claim_redistribution` |
+
+The IDL at `idl/hivework.json` is the **wire contract**. Every other service consumes it: the frontend types its program client from it, the indexer generates its event decoder from it via Codama, the MCP server uses it to build unsigned transactions for agents.
+
+---
+
+## Project layout
 
 ```
 Contract/
 ├── programs/hivework/src/
-│   ├── lib.rs          # 7 instrucciones del programa
-│   ├── state.rs        # Structs: Campaign, Node, Leaf, Conversion
-│   ├── constants.rs    # Stakes, fees, pesos por defecto
-│   ├── errors.rs       # 11 errores custom con códigos 6000-6010
-│   └── events.rs       # 5 eventos para indexer
-├── oracle/
-│   ├── index.js        # Servicio Oracle (Node.js + Express)
-│   ├── package.json
-│   └── .env.example    # Template de configuración
-├── target/
-│   ├── idl/hivework.json   # IDL para Grupos B y C
-│   └── deploy/hivework.so  # Binario deployable
+│   ├── lib.rs           # 11 instructions + contexts + payout math (~930 LOC)
+│   ├── state.rs         # 4 account types: Campaign, Node, Leaf, Conversion
+│   ├── constants.rs     # Stakes, fees, default α/β/γ, position factors, PDA seeds
+│   ├── errors.rs        # 16 typed errors (codes 6000+)
+│   └── events.rs        # 5 events emitted on every state transition
+├── tests/
+│   └── hivework.ts      # End-to-end happy-path test suite (Mocha + Anchor)
+├── oracle/              # Reference HTTP oracle service (see oracle/README.md)
+├── idl/
+│   └── hivework.json    # Generated IDL — the wire contract for B and C
+├── target/              # Anchor build artifacts (gitignored)
+│   ├── idl/hivework.json
+│   └── deploy/hivework.so
 ├── Anchor.toml
-└── Cargo.toml
+├── Cargo.toml
+└── INTEGRATION.md       # Step-by-step integration guide for B and C
 ```
 
-## Requisitos
+---
+
+## Account model
+
+Four PDA account types. All seeds are derivable off-chain so clients can compute addresses without RPC calls.
+
+| Account | Seeds | Notes |
+|---|---|---|
+| `Campaign` | `["campaign", authority, campaign_id_u32_le]` | Holds escrow ATA, weights `α/β/γ`, deadline, oracle pubkey, conversions counter, `usdc_mint` |
+| `Node` | `["node", campaign, creator, metadata_hash_32]` | Level 1 / 2 / 3, parent reference, stake locked, fork count, conversions count |
+| `Leaf` | `["leaf", campaign, ref_code_8_ascii]` | Genealogical path `[Pubkey; 3]`, ref_code as PDA seed |
+| `Conversion` | `["conversion", campaign, leaf, conversion_id_16]` | Value, processed flag, oracle-signed |
+
+`metadata_hash` on `Node` is **SHA-256 of the canonical JSON** stored in `api/`'s Postgres. The hash is signed on-chain — the actual metadata is off-chain but tamper-evident.
+
+---
+
+## Instructions
+
+| # | Instruction | Caller | Purpose |
+|---|---|---|---|
+| 1 | `create_campaign` | Brand | Initializes Campaign PDA + escrow ATA, accepts initial USDC, sets weights + deadline + oracle |
+| 2 | `create_node` | Anyone | Creates an L1/L2/L3 node, locks the level-appropriate stake, validates parent chain |
+| 3 | `create_leaf` | Anyone | Publishes a leaf, validates the `[L1, L2, L3]` path against on-chain nodes, locks 0.1 SOL |
+| 4 | `register_conversion` | **Oracle only** | Records a verified sale. `oracle: Signer` constraint enforces that only the campaign's pre-declared oracle pubkey can call this |
+| 5 | `close_and_distribute` | Anyone (post-deadline) | Processes one conversion per call: computes weights, transfers USDC to ancestors and leaf creator |
+| 6 | `forfeit_node_stake` | Anyone (post-close) | Loser nodes (`conversions_count == 0`) forfeit stake to the redistribution pool |
+| 7 | `forfeit_leaf_stake` | Anyone (post-close) | Same for leaves |
+| 8 | `claim_payout` | Node creator | Withdraws accumulated USDC + releases stake if winner |
+| 9 | `claim_leaf_payout` | Leaf creator | Same for leaves, with the +30% leaf bonus already accumulated |
+| 10 | `withdraw_unused_usdc` | Brand | After all conversions processed, brand reclaims any leftover escrow |
+| 11 | `claim_redistribution` | Winning leaf creator | Proportional share of the forfeited-stake pool |
+
+### `create_campaign` signature (v0.2 — USDC + oracle authority)
+
+```ts
+program.methods
+  .createCampaign(deadline, alpha, beta, gamma, campaignId, initialUsdc)
+  .accounts({
+    campaign: campaignPda,
+    usdcMint,
+    escrowUsdc,             // ATA derived from campaignPda + usdcMint
+    authorityUsdc,          // brand's USDC ATA (source of escrow funds)
+    authority,
+    oracleAuthority,        // pubkey allowed to sign register_conversion
+    tokenProgram,
+    associatedTokenProgram,
+    systemProgram,
+    rent,
+  })
+```
+
+**Validations** (any failure aborts the tx):
+
+- `alpha + beta + gamma == 100` → `InvalidWeights` (6011)
+- `deadline > now` → `InvalidDeadline` (6012)
+- `initial_usdc > 0`
+
+### `claim_payout` / `claim_leaf_payout` signature
+
+```ts
+program.methods.claimPayout().accounts({
+  node: nodePda,
+  campaign: campaignPda,    // signs the CPI to transfer escrow USDC
+  escrowUsdc,
+  creatorUsdc,              // creator's USDC ATA (destination)
+  creator,
+  tokenProgram,
+})
+```
+
+---
+
+## Economic constants
+
+All values live in `programs/hivework/src/constants.rs`. They are reproduced from the protocol spec verbatim — see [the root README](../README.md#the-math-proportional-payout-formula) for the full derivation.
+
+### Stakes (lamports)
+
+| Level | Stake | Rationale |
+|---|---|---|
+| L1 (hook) | 1.0 SOL | Hardest to do well, highest reward potential |
+| L2 (audio) | 0.5 SOL | |
+| L3 (visual) | 0.25 SOL | |
+| Leaf | 0.1 SOL | Lowest, but earns +30% bonus on each conversion |
+
+### Fees & bonuses
+
+| Constant | Value |
+|---|---|
+| `PLATFORM_FEE_PERCENTAGE` | 5% |
+| `LEAF_BONUS_PERCENTAGE` | 30% |
+
+### Default payout weights
+
+The brand can override these per campaign at `create_campaign` (must sum to 100).
+
+| Constant | Default | Meaning |
+|---|---|---|
+| `α` | 40 | Popularity (log of descendant fork count) |
+| `β` | 40 | Information richness (metadata bytes capped at 1 KB) |
+| `γ` | 20 | Hierarchical position |
+
+Position factors (`γ` multiplier) are stored ×10 on-chain:
+
+| Level | Factor |
+|---|---|
+| L1 | 1.0 |
+| L2 | 0.7 |
+| L3 | 0.5 |
+| Leaf | 0.3 |
+
+### The on-chain payout formula (literal from spec)
+
+```
+weight(node) = α × ln(descendant_forks + 1)
+             + β × min(bytes_metadata / 1000, 1.0)
+             + γ × position_factor[level]
+```
+
+`ln(x)` is approximated as `ilog2(x) × ln(2)` with integer scaling — Solana doesn't allow floats. The approximation is monotonic and sufficient for a relative weighting.
+
+### Distribution per conversion
+
+1. Subtract 5% platform fee.
+2. Reserve 30% of the remainder as the leaf bonus.
+3. The remaining 65% is split between L1, L2, L3, and the leaf according to weights.
+4. The leaf creator receives `leaf_weight_share + 30% bonus`.
+
+### Stake redistribution (positive-sum anti-spam)
+
+After campaign close:
+
+- Anyone may call `forfeit_node_stake` / `forfeit_leaf_stake` on accounts with `conversions_count == 0` and `stake_locked > 0`. Stake moves to `Campaign.forfeited_pool`.
+- Each winning leaf may call `claim_redistribution` once to withdraw `pool × leaf.conversions_count / campaign.total_conversions` lamports.
+- **Design choice:** only leaves participate in redistribution (not nodes), because every conversion increments exactly one leaf — giving a clean proportionality. Winning nodes already recover their full stake on `claim_payout`.
+
+---
+
+## Events
+
+Each event below is emitted on the Solana log stream and decoded by `indexer/` via Codama bindings.
+
+| Event | Fields |
+|---|---|
+| `CampaignCreated` | `campaign`, `authority`, `total_usdc`, `deadline` |
+| `NodeCreated` | `node`, `campaign`, `creator`, `level` |
+| `LeafCreated` | `leaf`, `campaign`, `creator`, `ref_code` |
+| `ConversionRegistered` | `conversion`, `campaign`, `leaf`, `value` |
+| `CampaignClosed` | `campaign`, `conversions_processed` |
+
+---
+
+## Errors
+
+16 typed errors with codes 6000–6015. Surface them in the frontend as user-facing messages.
+
+| Code | Name | Meaning |
+|---|---|---|
+| 6000 | `CampaignClosed` | Campaign already closed |
+| 6001 | `CampaignNotClosed` | Campaign deadline not yet reached |
+| 6002 | `UnauthorizedOracle` | Caller is not the campaign's oracle authority |
+| 6003 | `InvalidLevel` | Level must be 1, 2, or 3 |
+| 6004 | `InvalidParentNode` | Parent does not match expected level / campaign |
+| 6005 | `InvalidGenealogicalPath` | Leaf path doesn't reference the right L1/L2/L3 nodes of this campaign |
+| 6006 | `InsufficientStake` | Lamports transferred do not match required stake |
+| 6007 | `InsufficientFunds` | No funds available to claim |
+| 6008 | `MathError` | Saturating math caught an overflow |
+| 6009 | `ConversionAlreadyRegistered` | This conversion was already distributed |
+| 6010 | `DataTooLarge` | Metadata exceeds maximum length |
+| 6011 | `InvalidWeights` | α + β + γ ≠ 100 |
+| 6012 | `InvalidDeadline` | Deadline is in the past |
+| 6013 | `NodeIsWinner` | Only nodes with zero conversions can be forfeited |
+| 6014 | `NoStakeToForfeit` | No stake remains to forfeit |
+| 6015 | `RedistributionAlreadyClaimed` | Leaf already claimed its pool share |
+
+---
+
+## Build & deploy
+
+### Prerequisites
 
 - Rust + Cargo
-- Solana CLI (`sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"`)
-- Anchor CLI (`avm install latest && avm use latest`)
-- Node.js 18+ (para Oracle y tests)
+- Solana CLI: `sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"`
+- Anchor CLI: `avm install latest && avm use latest`
+- Node ≥ 18 for tests and oracle
 
-## Compilar
+### Build
 
 ```bash
 cd Contract
@@ -38,7 +284,9 @@ export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
 anchor build
 ```
 
-## Deploy a devnet
+Outputs `target/idl/hivework.json` (consumed by all other services) and `target/deploy/hivework.so`.
+
+### Deploy to devnet
 
 ```bash
 solana config set --url devnet
@@ -46,179 +294,49 @@ solana airdrop 2
 anchor deploy --provider.cluster devnet
 ```
 
-El Program ID se imprime en consola. Actualízalo si cambia con `anchor keys sync`.
+The program ID is printed on success. If it changes, run `anchor keys sync` and update:
 
-## Correr el Oracle
+- `Anchor.toml`
+- `COORDINATION.md`
+- `web/.env.local` → `NEXT_PUBLIC_PROGRAM_ID`
+- `indexer/.env` → `HIVEWORK_PROGRAM_ID`
+- `mcp/.env` → `HIVEWORK_PROGRAM_ID`
 
-```bash
-cd oracle
-npm install
-cp .env.example .env
-# Editar .env con la llave privada del oracle y el PROGRAM_ID
-npm start
-```
-
-## Instrucciones del programa
-
-| Instrucción | Descripción |
-|---|---|
-| `create_campaign` | Marca crea campaña con escrow USDC y pesos α,β,γ |
-| `create_node` | Crear nodo (L1/L2/L3) con stake obligatorio en SOL |
-| `create_leaf` | Creator registra publicación con path genealógico |
-| `register_conversion` | Solo oracle: registra conversión verificada |
-| `close_and_distribute` | Cierra campaña y distribuye USDC por batch |
-| `claim_payout` | Wallet retira USDC acumulado (nodos) |
-| `claim_leaf_payout` | Wallet retira USDC acumulado (hojas) |
-| `forfeit_node_stake` | Forfeit stake de un nodo perdedor → pool de redistribución |
-| `forfeit_leaf_stake` | Forfeit stake de una hoja perdedora → pool de redistribución |
-| `claim_redistribution` | Hoja ganadora reclama su porción del pool forfeit |
-
-## Stakes anti-spam
-
-| Nivel | Stake |
-|---|---|
-| Nodo L1 (hook) | 1.0 SOL |
-| Nodo L2 (audio) | 0.5 SOL |
-| Nodo L3 (visual) | 0.25 SOL |
-| Hoja (publicación) | 0.1 SOL |
-
-## Eventos emitidos
-
-- `CampaignCreated` — campaign, authority, total_usdc, deadline
-- `NodeCreated` — node, campaign, creator, level
-- `LeafCreated` — leaf, campaign, creator, ref_code
-- `ConversionRegistered` — conversion, campaign, leaf, value
-- `CampaignClosed` — campaign, conversions_processed
-
-## Errores custom (para Grupo C)
-
-| Código | Nombre | Mensaje |
-|---|---|---|
-| 6000 | CampaignClosed | Campaña ya ha cerrado |
-| 6001 | CampaignNotClosed | Campaña aún no ha cerrado |
-| 6002 | UnauthorizedOracle | Firma de oracle inválida |
-| 6003 | InvalidLevel | El nivel debe ser 1, 2 o 3 |
-| 6004 | InvalidParentNode | Nodo padre inválido |
-| 6005 | InvalidGenealogicalPath | Path genealógico incorrecto |
-| 6006 | InsufficientStake | Stake insuficiente |
-| 6007 | InsufficientFunds | No hay fondos para retirar |
-| 6008 | MathError | Error en cálculo de payout |
-| 6009 | ConversionAlreadyRegistered | Conversión ya procesada |
-| 6010 | DataTooLarge | Excede máxima longitud |
-| 6011 | InvalidWeights | α + β + γ ≠ 100 |
-| 6012 | InvalidDeadline | Deadline en el pasado |
-| 6013 | NodeIsWinner | Solo nodos sin conversiones pueden ser forfeit |
-| 6014 | NoStakeToForfeit | No hay stake para forfeit |
-| 6015 | RedistributionAlreadyClaimed | El leaf ya reclamó su porción del pool |
-
-## Cambios v0.2 (USDC real + auth oracle)
-
-### Firma de `create_campaign`
-
-Ahora pide **6 args** (antes 5) y cuentas SPL Token:
-
-```ts
-program.methods
-  .createCampaign(deadline, alpha, beta, gamma, campaignId, initialUsdc)
-  .accounts({
-    campaign: campaignPda,
-    usdcMint,                  // ← NUEVO
-    escrowUsdc,                // ATA derivada de campaignPda + usdcMint
-    authorityUsdc,             // ← NUEVO: ATA de la marca con USDC
-    authority,
-    oracleAuthority,           // ← NUEVO: pubkey del oracle autorizado
-    tokenProgram,              // ← NUEVO
-    associatedTokenProgram,    // ← NUEVO
-    systemProgram,
-    rent,                      // ← NUEVO
-  })
-```
-
-### Firma de `claim_payout` y `claim_leaf_payout`
-
-```ts
-program.methods.claimPayout().accounts({
-  node: nodePda,
-  campaign: campaignPda,       // ← NUEVO (para firmar el CPI)
-  escrowUsdc,                  // ← NUEVO
-  creatorUsdc,                 // ← NUEVO ATA del creator
-  creator,
-  tokenProgram,                // ← NUEVO
-})
-```
-
-### `register_conversion` ahora valida oracle
-
-El signer `oracle` debe coincidir con `campaign.oracle_authority` o falla con `UnauthorizedOracle` (6002). El pubkey del oracle autorizado se fija al crear la campaña.
-
-### Validaciones añadidas en `create_campaign`
-
-- `alpha + beta + gamma == 100` → `InvalidWeights`
-- `deadline > now` → `InvalidDeadline`
-- `initial_usdc > 0`
-
-### Campos nuevos en `Campaign`
-
-- `id: u32`
-- `usdc_mint: Pubkey`
-- `oracle_authority: Pubkey`
-
-## USDC en devnet
-
-El demo necesita un mint de USDC para devnet. Dos opciones:
-
-- **Mint propio de prueba** (recomendado para hackathon): `spl-token create-token --decimals 6` y luego `spl-token mint <MINT> 10000` a la wallet de la marca antes del demo.
-- **USDC oficial de Circle en devnet**: `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`. Requiere conseguir tokens vía faucet de Circle.
-
-## Correr tests
+### Test
 
 ```bash
 cd Contract
-npm install      # primera vez
+npm install     # first time
 anchor test --provider.cluster devnet
 ```
 
-## Fórmula implementada (literal del spec)
+Runs `tests/hivework.ts` end-to-end: campaign creation, multi-level node + leaf creation, conversion registration with oracle, close-and-distribute math, stake forfeit, payout claims, redistribution. Asserts USDC and SOL balance changes at every step.
 
-```
-peso(nodo) = α × ln(forks_descendientes + 1)
-           + β × min(bytes_metadata / 1000, 1.0)
-           + γ × position_factor[nivel]
-```
+### USDC on devnet
 
-- `α = 0.4`, `β = 0.4`, `γ = 0.2` (configurable por la marca, deben sumar 100)
-- `position_factor`: L1=1.0, L2=0.7, L3=0.5, leaf=0.3
-- `ln(x)` aproximado on-chain como `ilog2(x) × ln(2)` con escalado entero (sin floats)
-- `bytes_metadata` lo aporta el creador al llamar `create_node`/`create_leaf`. Debería corresponder al tamaño en bytes del JSON canónico de metadata. La marca puede inspeccionar el `metadata_hash` (SHA-256) y el indexer guarda el JSON real.
+The demo needs a USDC mint on devnet. Two options:
 
-Distribución de cada conversión:
+- **Custom test mint** (recommended for hackathon): `spl-token create-token --decimals 6` then `spl-token mint <MINT> 10000` to the brand wallet before the demo.
+- **Circle's devnet USDC**: `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`. Requires tokens via Circle's faucet.
 
-1. Resta 5% de platform_fee
-2. Reserva 30% bonus para el leaf
-3. Restante (65% de la conversión) se reparte entre L1, L2, L3 y leaf según pesos
-4. El leaf recibe su porción + el 30% bonus
+---
 
-## Redistribución de stakes (anti-spam con incentivo positivo)
+## Security notes & known limitations
 
-- Al cierre, cualquiera puede llamar `forfeit_node_stake` / `forfeit_leaf_stake` sobre cuentas con `conversions_count == 0` y `stake_locked > 0`. El stake se mueve a `Campaign.forfeited_pool`.
-- Cada leaf ganadora puede llamar `claim_redistribution` UNA vez para retirar `pool × leaf.conversions_count / campaign.total_conversions` lamports.
-- Decisión MVP: solo leaves participan en la redistribución (no los nodos), porque cada conversión incrementa exactamente un leaf, dando una proporción matemáticamente limpia. Los nodos ganadores ya recuperan su stake completo al hacer `claim_payout`.
+| Concern | Status | Notes |
+|---|---|---|
+| Oracle signature | ⚠️ Pubkey-only check | The current `register_conversion` enforces `oracle: Signer` via Anchor's address constraint, which proves the keypair signed the tx. There is no additional ed25519 verification of an off-chain payload — for the demo this is sufficient because the oracle keypair *is* the trust anchor. For mainnet, consider adding a signed conversion payload + ed25519 sysvar program verification to support gasless conversion submission. |
+| Integer math | ✅ saturating + checked | All arithmetic uses `checked_*` / `saturating_*`; truncation in division is acceptable (residual goes to platform fee). |
+| Reentrancy | ✅ N/A | Solana's runtime model rules out classic reentrancy. |
+| `close_and_distribute` permissioning | ✅ open + safe | Anyone can call it post-deadline; the Campaign PDA is the authority for the escrow ATA, so funds can only flow per the program's logic regardless of caller. |
+| Metadata tampering | ✅ on-chain hash | `metadata_hash` is signed on-chain at `create_node` time. `api/` cannot rewrite history; the indexer rejects metadata whose hash doesn't match. |
 
-## Anti-fraude del oracle
+---
 
-`oracle/index.js` aplica los 3 filtros del spec antes de firmar:
-1. **Validación de wallet/pubkey**: todas las pubkeys del payload deben ser base58 válidas.
-2. **IP no duplicada**: máx 5 conversiones por IP en 60s, con intervalo mínimo de 5s.
-3. **Timing por wallet+campaign**: misma wallet/leaf no puede repetir < 30s.
+## See also
 
-## Configuración del oracle (con la keypair de B3)
-
-B3 ya generó la keypair en `indexer/oracle.json` con pubkey `FkSMCtbcPdeNJLSnzMxWn8biR1fPyUF1wqLHhwGNdoEU`. Para correr el oracle service apuntando a ese archivo:
-
-```bash
-cd Contract/oracle
-cp .env.example .env
-# .env ya viene con ORACLE_KEYPAIR_PATH=../../indexer/oracle.json
-npm install
-npm start
-```
+- **System architecture, math, and pitch:** [`../README.md`](../README.md)
+- **Reference HTTP oracle service:** [`./oracle/README.md`](./oracle/README.md)
+- **Indexer that decodes our events + signs conversions:** [`../indexer/README.md`](../indexer/README.md)
+- **MCP server that wraps our instructions for AI agents:** [`../mcp/README.md`](../mcp/README.md)
+- **Full integration walkthrough for B and C:** [`./INTEGRATION.md`](./INTEGRATION.md)

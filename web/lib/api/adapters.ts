@@ -74,6 +74,7 @@ export function adaptCampaign(c: ApiCampaignSummary): CampaignSummary {
     // No category column today; everything renders as "consumer".
     category: "consumer",
     hot: conversions > 5,
+    creatorWallet: c.creatorWallet,
   };
 }
 

@@ -14,6 +14,7 @@ export type CampaignSummary = {
   hoursLeft: number;
   category: "consumer" | "web3" | "saas" | "social";
   hot: boolean;
+  creatorWallet: string;
 };
 
 // MOCK_CAMPAIGNS commented out — replaced by useCampaigns() hook (Tier 1).

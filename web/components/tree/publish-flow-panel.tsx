@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { type TreeNode } from "@/lib/mocks/tree";
+import { shortlinkUrl } from "@/lib/shortlink";
 
 export type PublishStep = "hook" | "audio" | "visual";
 
@@ -263,7 +264,7 @@ function PublishedCard({
   path: TreeNode[];
   onReset: () => void;
 }) {
-  const url = `https://hivework.link/${refCode}`;
+  const url = shortlinkUrl(refCode);
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
