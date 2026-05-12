@@ -16,6 +16,7 @@
 | | |
 |---|---|
 | **Base URL (local)** | `http://localhost:3401` |
+| **Base URL (production)** | [`https://api-hivework.oscargauss.com`](https://api-hivework.oscargauss.com) |
 | **OpenAPI / Swagger UI** | `GET /docs` (interactive) · `GET /docs/json` (raw spec) |
 | **Health probe** | `GET /health` — pings the DB before returning `200` |
 | **Real-time** | `GET /events/stream` — Server-Sent Events for every state transition |

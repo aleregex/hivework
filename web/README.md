@@ -143,7 +143,11 @@ cp .env.example .env.local
 ```
 
 ```bash
+# Local
 NEXT_PUBLIC_API_URL=http://localhost:3401
+# Or production:
+# NEXT_PUBLIC_API_URL=https://api-hivework.oscargauss.com
+
 NEXT_PUBLIC_RPC_ENDPOINT=https://api.devnet.solana.com
 NEXT_PUBLIC_PROGRAM_ID=8wsaheyJ3e1e8zRUFX22apjvutNcaEagTyk21N75Ybz8
 ```
@@ -169,7 +173,7 @@ node scripts/gen-wallets.mjs
 
 | Var | Required | Purpose |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | ✅ | Base URL of `api/` |
+| `NEXT_PUBLIC_API_URL` | ✅ | Base URL of `api/`. Local: `http://localhost:3401` · Production: `https://api-hivework.oscargauss.com` |
 | `NEXT_PUBLIC_RPC_ENDPOINT` | ✅ | Solana RPC for the wallet adapter |
 | `NEXT_PUBLIC_PROGRAM_ID` | ✅ | Hivework program ID (devnet by default) |
 | `NEXT_PUBLIC_SHORTLINK_BASE_URL` | | Public base URL for ref-code links |

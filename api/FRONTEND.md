@@ -8,8 +8,8 @@
 
 | | |
 |---|---|
-| Base URL (local) | `http://localhost:3001` |
-| Base URL (deploy) | set in `web/.env.local` as `NEXT_PUBLIC_API_URL` (TBD by Group B) |
+| Base URL (local) | `http://localhost:3401` |
+| Base URL (production) | [`https://api-hivework.oscargauss.com`](https://api-hivework.oscargauss.com) — set as `NEXT_PUBLIC_API_URL` in `web/.env.local` |
 | OpenAPI / Swagger | `GET /docs` (interactive), `GET /docs/json` (raw spec) |
 | Auth | **none today**. Wallet-signature JWT is on the wishlist; for the demo every endpoint is open. |
 | CORS | `CORS_ORIGIN=http://localhost:3000` by default; multi-origin = comma-separated; `*` = wildcard. |
@@ -24,7 +24,10 @@
 
 1. Add to `web/.env.local`:
    ```
-   NEXT_PUBLIC_API_URL=http://localhost:3001
+   # Local
+   NEXT_PUBLIC_API_URL=http://localhost:3401
+   # Or production:
+   # NEXT_PUBLIC_API_URL=https://api-hivework.oscargauss.com
    ```
 2. The api allows credentials and reads `CORS_ORIGIN`. If you change the web port, update `api/.env`'s `CORS_ORIGIN`.
 3. The api is stateless — feel free to call from server components, route handlers, or the client. No cookies are required.
@@ -524,7 +527,7 @@ cd indexer && npm install && npm run dev     # listens to devnet, writes to api'
 cd api && npm test
 ```
 
-Open `http://localhost:3001/docs` for live Swagger and `http://localhost:3001/health` for a quick liveness + DB check.
+Open `http://localhost:3401/docs` for live Swagger and `http://localhost:3401/health` for a quick liveness + DB check. The same endpoints are available in production at [`https://api-hivework.oscargauss.com/docs`](https://api-hivework.oscargauss.com/docs) and [`https://api-hivework.oscargauss.com/health`](https://api-hivework.oscargauss.com/health).
 
 ---
 
