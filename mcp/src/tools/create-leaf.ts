@@ -9,7 +9,8 @@ import {
   TxBuilderError,
 } from "../solana/tx-builder.js";
 
-const LEAF_STAKE_SOL = 0.1;
+// Mirrors LEAF_STAKE_AMOUNT in Contract/programs/hivework/src/constants.rs.
+const LEAF_STAKE_SOL = 0.00006;
 
 const stakeShape = z
   .object({

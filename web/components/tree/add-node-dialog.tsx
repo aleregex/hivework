@@ -24,6 +24,11 @@ import { Textarea } from "@/components/ui/textarea";
 import type { TreeNode } from "@/lib/mocks/tree";
 import { useHiveworkProgram } from "@/lib/anchor/program";
 import { createNodeOnchain } from "@/lib/anchor/tx";
+import {
+  RENT_SOL_PER_NODE,
+  STAKE_SOL_BY_LEVEL,
+  TX_FEE_SOL,
+} from "@/lib/anchor/stakes";
 import { postNodeDraft, postNodeFinalize } from "@/lib/api/hooks";
 
 /**
@@ -37,13 +42,9 @@ import { postNodeDraft, postNodeFinalize } from "@/lib/api/hooks";
  * ref-link + QR and that UX is visual, not form-based.
  */
 
-// Stakes match Contract/programs/hivework/src/constants.rs after the
-// devnet-cheap redeploy. Display only — contract enforces the on-chain values.
-const STAKE_BY_LEVEL: Record<1 | 2 | 3, number> = {
-  1: 0.01,
-  2: 0.005,
-  3: 0.0025,
-};
+// Display values for the form. Real numbers live in @/lib/anchor/stakes,
+// which mirrors Contract/programs/hivework/src/constants.rs.
+const STAKE_BY_LEVEL = STAKE_SOL_BY_LEVEL;
 
 const LEVEL_LABEL: Record<1 | 2 | 3, string> = {
   1: "Hook (the first 3 seconds)",
@@ -181,7 +182,7 @@ export function AddNodeDialog({
       };
       onCreate(newNode);
       queryClient.invalidateQueries({ queryKey: ["campaigns", campaignId] });
-      toast.success(`Node staked ${stake} SOL on devnet`, {
+      toast.success(`Node staked ${stake.toFixed(5)} SOL on devnet`, {
         description: `tx ${signature.slice(0, 8)}…${signature.slice(-4)}`,
         duration: 2400,
       });
@@ -270,8 +271,28 @@ export function AddNodeDialog({
           </div>
 
           <div className="rounded-md border border-honey/30 bg-honey/5 p-3 font-mono text-[11px] leading-relaxed text-honey">
-            Phantom will sign 1 tx: createNode + transfer {stake} SOL to the
-            campaign&apos;s stake vault.
+            <p>Phantom will sign 1 tx with this cost breakdown:</p>
+            <ul className="mt-1.5 space-y-0.5 text-honey-soft">
+              <li>
+                · stake <span className="text-honey">{stake.toFixed(5)} SOL</span>{" "}
+                — refundable when this node converts
+              </li>
+              <li>
+                · rent <span className="text-honey">~{RENT_SOL_PER_NODE.toFixed(5)} SOL</span>{" "}
+                — Solana storage deposit, refundable if account closes
+              </li>
+              <li>
+                · fee <span className="text-honey">~{TX_FEE_SOL.toFixed(6)} SOL</span>{" "}
+                — network gas, not refundable
+              </li>
+              <li className="pt-0.5">
+                = total ~
+                <span className="text-honey">
+                  {(stake + RENT_SOL_PER_NODE + TX_FEE_SOL).toFixed(5)} SOL
+                </span>{" "}
+                will leave your wallet now
+              </li>
+            </ul>
           </div>
 
           <DialogFooter>
@@ -285,7 +306,7 @@ export function AddNodeDialog({
             </Button>
             <Button type="submit" variant="honey" disabled={submitting}>
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {submitting ? "Signing…" : `Stake ${stake} SOL & create`}
+              {submitting ? "Signing…" : `Stake ${stake.toFixed(5)} SOL & create`}
             </Button>
           </DialogFooter>
         </form>

@@ -9,7 +9,10 @@ import {
   TxBuilderError,
 } from "../solana/tx-builder.js";
 
-const STAKE_BY_LEVEL = { L1: 1.0, L2: 0.5, L3: 0.25 } as const;
+// Mirrors Contract/programs/hivework/src/constants.rs. If the contract
+// changes its stakes, update this and the matching value in
+// web/lib/anchor/stakes.ts in lockstep.
+const STAKE_BY_LEVEL = { L1: 0.0006, L2: 0.0003, L3: 0.00015 } as const;
 
 const metadataShape = z.object({
   title: z.string().min(1).max(120),

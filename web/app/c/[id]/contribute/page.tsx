@@ -21,16 +21,10 @@ import { postNodeDraft, postNodeFinalize, useCampaign } from "@/lib/api/hooks";
 import { adaptCampaign, adaptTree } from "@/lib/api/adapters";
 import { useHiveworkProgram } from "@/lib/anchor/program";
 import { createNodeOnchain } from "@/lib/anchor/tx";
+import { STAKE_SOL_BY_LEVEL } from "@/lib/anchor/stakes";
 
-// Stakes match Contract/programs/hivework/src/constants.rs after the
-// devnet-cheap redeploy (100x reduction from the paper). On-chain transfers
-// use the level — these values are display only; the contract is the source
-// of truth.
-const STAKE_BY_LEVEL: Record<number, number> = {
-  1: 0.01,
-  2: 0.005,
-  3: 0.0025,
-};
+// Display values for the form. Single source of truth in @/lib/anchor/stakes.
+const STAKE_BY_LEVEL: Record<number, number> = STAKE_SOL_BY_LEVEL;
 
 const nodeSchema = z.object({
   level: z.coerce.number().min(1).max(3),
@@ -72,7 +66,7 @@ export default function ContributePage({ params }: PageProps) {
   });
 
   const watchedLevel = form.watch("level");
-  const stakeForNode = STAKE_BY_LEVEL[watchedLevel] ?? 0.01;
+  const stakeForNode = STAKE_BY_LEVEL[watchedLevel] ?? STAKE_BY_LEVEL[1];
 
   async function submit(values: NodeForm) {
     if (!program || !publicKey) {

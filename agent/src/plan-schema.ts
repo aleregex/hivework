@@ -4,10 +4,12 @@ import { z } from "zod";
 export const NODE_LEVELS = [1, 2, 3] as const;
 export type NodeLevel = (typeof NODE_LEVELS)[number];
 
+// Mirrors L1/L2/L3_STAKE_AMOUNT in Contract/programs/hivework/src/constants.rs.
+// Update in lockstep with that file (and web/lib/anchor/stakes.ts).
 export const STAKE_SOL_BY_LEVEL: Record<NodeLevel, number> = {
-  1: 1.0,
-  2: 0.5,
-  3: 0.25,
+  1: 0.0006,
+  2: 0.0003,
+  3: 0.00015,
 };
 
 export const nodePlanItemSchema = z
