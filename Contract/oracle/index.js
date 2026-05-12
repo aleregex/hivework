@@ -46,6 +46,23 @@ const oracleKeypair = loadKeypair();
 console.log(`Oracle pubkey: ${oracleKeypair.publicKey.toBase58()}`);
 
 const connection = new Connection(RPC_URL, 'confirmed');
+
+// Surface the oracle wallet's SOL balance at boot so missing-funds bugs are
+// obvious. "Attempt to debit an account but found no record of a prior credit"
+// is almost always this: the oracle pays tx fees and needs devnet SOL.
+connection.getBalance(oracleKeypair.publicKey).then(
+  (lamports) => {
+    const sol = (lamports / 1e9).toFixed(4);
+    console.log(`[oracle] saldo del fee-payer: ${sol} SOL (${lamports} lamports) en ${RPC_URL}`);
+    if (lamports === 0) {
+      console.warn(
+        `[oracle] ⚠️  El oracle tiene 0 SOL. Fundealo con:\n` +
+          `         solana airdrop 2 ${oracleKeypair.publicKey.toBase58()} --url devnet`
+      );
+    }
+  },
+  (err) => console.warn(`[oracle] no pude leer saldo: ${err.message}`)
+);
 const wallet = new Wallet(oracleKeypair);
 const provider = new AnchorProvider(connection, wallet, { preflightCommitment: 'confirmed' });
 
@@ -113,6 +130,15 @@ function isLegitimate({ walletPubkey, campaignPubkey, ip }) {
 
 // POST /webhook/conversion — Grupo B envía conversiones
 app.post('/webhook/conversion', async (req, res) => {
+  const reqId = Math.random().toString(36).slice(2, 8);
+  console.log(`[oracle][${reqId}] webhook recibido`, {
+    conversion_id: req.body?.conversion_id,
+    leaf: req.body?.leaf_pubkey,
+    campaign: req.body?.campaign_pubkey,
+    value_usdc: req.body?.value_usdc,
+    buyer: req.body?.wallet_address,
+    ip: req.ip,
+  });
   try {
     // Bearer-token guard. Habilitado solo cuando WEBHOOK_TOKEN está definido.
     if (WEBHOOK_TOKEN) {
@@ -200,7 +226,17 @@ app.post('/webhook/conversion', async (req, res) => {
       program.programId
     );
 
-    console.log(`Firmando conversión ${conversion_id} → ${conversionPda.toBase58()}`);
+    console.log(`[oracle][${reqId}] firmando conversión`, {
+      conversion_id,
+      conversion_pda: conversionPda.toBase58(),
+      campaign: campaignKey.toBase58(),
+      leaf: leafKey.toBase58(),
+      node_l1: node_l1_pubkey,
+      node_l2: node_l2_pubkey,
+      node_l3: node_l3_pubkey,
+      fee_payer: oracleKeypair.publicKey.toBase58(),
+      value_usdc: value.toString(),
+    });
 
     const tx = await program.methods.registerConversion(Array.from(idBuffer), value)
       .accounts({
@@ -216,7 +252,7 @@ app.post('/webhook/conversion', async (req, res) => {
       .signers([oracleKeypair])
       .rpc();
 
-    console.log(`TX exitosa: ${tx}`);
+    console.log(`[oracle][${reqId}] tx exitosa: ${tx}`);
 
     res.status(200).json({
       success: true,
@@ -225,7 +261,18 @@ app.post('/webhook/conversion', async (req, res) => {
       pda: conversionPda.toBase58(),
     });
   } catch (error) {
-    console.error("Error procesando webhook:", error.message);
+    console.error(`[oracle][${reqId}] error procesando webhook:`, error.message);
+    // SendTransactionError carga logs detallados que el .message oculta. Si
+    // están disponibles los volcamos para diagnosticar el revert real (e.g.
+    // "Attempt to debit an account ..." = fee-payer sin SOL).
+    if (typeof error.getLogs === 'function') {
+      try {
+        const logs = await error.getLogs(connection);
+        console.error(`[oracle][${reqId}] logs on-chain:`, logs);
+      } catch (logErr) {
+        console.error(`[oracle][${reqId}] no pude leer logs:`, logErr.message);
+      }
+    }
     res.status(500).json({ error: error.message });
   }
 });
