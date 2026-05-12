@@ -69,9 +69,18 @@ function transferIx(args: {
   owner: PublicKey;
   amountBase: bigint;
 }): TransactionInstruction {
+  // The browser-bundled Buffer polyfill doesn't expose writeBigUInt64LE, so
+  // we serialize the u64 little-endian by hand. tsconfig target is ES2017, so
+  // we can't use BigInt literals (`0xffn`) — use `BigInt(n)` instead.
   const data = Buffer.alloc(9);
-  data.writeUInt8(3, 0); // Transfer discriminator
-  data.writeBigUInt64LE(args.amountBase, 1);
+  data[0] = 3; // Transfer discriminator
+  let amount = args.amountBase;
+  const MASK = BigInt(0xff);
+  const SHIFT = BigInt(8);
+  for (let i = 0; i < 8; i++) {
+    data[1 + i] = Number(amount & MASK);
+    amount >>= SHIFT;
+  }
   return new TransactionInstruction({
     programId: TOKEN_PROGRAM_ID,
     keys: [
@@ -109,6 +118,16 @@ export async function transferUsdc(args: TransferUsdcArgs): Promise<string> {
   const sourceAta = getAta(args.payer, args.usdcMint);
   const destAta = getAta(args.recipient, args.usdcMint);
 
+  console.log("[usdc-transfer] computed atas", {
+    payer: args.payer.toBase58(),
+    recipient: args.recipient.toBase58(),
+    usdcMint: args.usdcMint.toBase58(),
+    amountUsdc: args.amountUsdc,
+    amountBase: amountBase.toString(),
+    sourceAta: sourceAta.toBase58(),
+    destAta: destAta.toBase58(),
+  });
+
   const tx = new Transaction()
     .add(
       createAtaIdempotentIx({
@@ -131,13 +150,20 @@ export async function transferUsdc(args: TransferUsdcArgs): Promise<string> {
     await args.connection.getLatestBlockhash("confirmed");
   tx.recentBlockhash = blockhash;
   tx.feePayer = args.payer;
+  console.log("[usdc-transfer] got blockhash · sending tx", {
+    blockhash,
+    lastValidBlockHeight,
+    ixCount: tx.instructions.length,
+  });
 
   const signature = await args.sendTransaction(tx, args.connection);
+  console.log("[usdc-transfer] tx sent · awaiting confirmation", { signature });
 
   await args.connection.confirmTransaction(
     { signature, blockhash, lastValidBlockHeight },
     "confirmed",
   );
+  console.log("[usdc-transfer] confirmed", { signature });
 
   return signature;
 }

@@ -114,9 +114,20 @@ export default function BuyPage({ params }: PageProps) {
 
     setErrorMsg(null);
 
+    console.log("[buy] start", {
+      refCode,
+      buyer: publicKey.toBase58(),
+      recipient: campaign.creatorWallet,
+      amountUsdc: pricingUsdc,
+      usdcMint: usdcMintStr,
+      campaignId: campaign.id,
+      leafId: leaf.id,
+    });
+
     // Phase 1: pay the brand. For now we send USDC directly to the campaign
     // creator's wallet — proper flow (Solana Pay, brand checkout) lives later.
     setPhase("paying");
+    console.log("[buy] phase=paying · calling transferUsdc");
     let paymentSig: string;
     try {
       paymentSig = await transferUsdc({
@@ -127,9 +138,10 @@ export default function BuyPage({ params }: PageProps) {
         amountUsdc: pricingUsdc,
         sendTransaction,
       });
+      console.log("[buy] payment confirmed", { paymentSig });
       toast.success("Payment sent", { description: `tx ${shortSig(paymentSig)}` });
     } catch (err) {
-      console.error("usdc payment failed", err);
+      console.error("[buy] usdc payment failed", err);
       const msg = err instanceof Error ? err.message : "Payment failed.";
       setErrorMsg(msg);
       setPhase("error");
@@ -140,6 +152,11 @@ export default function BuyPage({ params }: PageProps) {
     // Phase 2: attest the conversion via the oracle. The api forwards to the
     // oracle webhook; status reflects what came back.
     setPhase("attesting");
+    console.log("[buy] phase=attesting · posting /demo/convert", {
+      refCode,
+      valueUsdc: pricingUsdc,
+      buyerWallet: publicKey.toBase58(),
+    });
     try {
       const res = await postDemoConvert({
         refCode,
@@ -147,6 +164,7 @@ export default function BuyPage({ params }: PageProps) {
         buyerWallet: publicKey.toBase58(),
         source: "demo_buy_page",
       });
+      console.log("[buy] /demo/convert returned", res);
       setResult({
         paymentSig,
         oracleStatus: res.status,
@@ -170,6 +188,7 @@ export default function BuyPage({ params }: PageProps) {
         });
       }
     } catch (err) {
+      console.error("[buy] /demo/convert failed", err);
       const msg = describeApiError(err);
       // Payment already went through — surface that so the user knows.
       setResult({ paymentSig, oracleStatus: "rejected", oracleSig: null });
