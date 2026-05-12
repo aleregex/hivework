@@ -70,7 +70,10 @@ const provider = new AnchorProvider(connection, wallet, { preflightCommitment: '
 
 let program;
 try {
-  const idl = require('../idl/hivework.json');
+  // IDL is bundled inside this folder so the oracle is self-contained — works
+  // when Dokploy/Railway is configured with Build Path = Contract/oracle (the
+  // parent monorepo is NOT present inside the container).
+  const idl = require('./hivework.json');
   const programId = new PublicKey(PROGRAM_ID_STR || idl.address);
   program = new Program(idl, provider);
   console.log(`Programa cargado: ${programId.toBase58()}`);
